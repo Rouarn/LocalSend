@@ -1,10 +1,12 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import OnlineUser from '@/views/home/modules/online-user.vue';
+</script>
 
 <template>
   <NLayout class="h-full" content-class="w-full flex flex-col">
     <NLayout has-sider class="flex-1" content-class="w-full h-full">
       <NLayoutSider :native-scrollbar="false" bordered content-class="w[calc(100%-40px)] pa-20px h-full">
-        <NH2>海淀桥</NH2>
+        <OnlineUser />
       </NLayoutSider>
       <NLayout content-class="flex flex-col">
         <NLayoutHeader class="h-5rem flex items-center justify-center text-10 font-900" bordered>
