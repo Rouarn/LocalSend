@@ -21,7 +21,7 @@ import OnlineUser from '@/views/home/modules/online-user.vue';
         </NLayoutContent>
       </NLayout>
     </NLayout>
-    <NLayoutFooter bordered class="h-xs pa-20px">城府路</NLayoutFooter>
+    <NLayoutFooter bordered class="h-xs pa-20px lt-lg:h-8rem">城府路</NLayoutFooter>
   </NLayout>
 </template>
 
