@@ -1,6 +1,48 @@
-import { onUnmounted } from 'vue';
+import type { Ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 import type { ManagerOptions, Socket, SocketOptions } from 'socket.io-client';
-import { getSocketInstance, resetSocketInstance } from './socket';
+import { io } from 'socket.io-client';
+import { getServiceBaseURL } from '@/utils/service';
+
+let socketInstance: Socket | null = null;
+
+interface WebSocketOptions extends Partial<ManagerOptions & SocketOptions> {
+  query?: Record<string, string>;
+}
+
+const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+const { otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
+
+/**
+ * 获取或创建 Socket.IO 实例
+ *
+ * @param url 服务器地址
+ * @param options 连接选项
+ * @returns Socket.IO 实例
+ */
+function getSocketInstance(url: string = otherBaseURL.ws, options: WebSocketOptions = {}): Socket {
+  if (!socketInstance) {
+    const defaultOptions: WebSocketOptions = {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      query: {},
+      ...options
+    };
+
+    socketInstance = io(url, defaultOptions);
+  }
+  return socketInstance;
+}
+
+/** 重置 Socket 实例（用于重新连接或更改配置） */
+function resetSocketInstance(): void {
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
+  }
+}
 
 interface UseSocketReturn {
   /** Socket.IO 实例 */
@@ -23,8 +65,8 @@ interface UseSocketReturn {
    */
   emit: (event: string, data?: unknown) => void;
 
-  /** 是否已连接 */
-  connected: boolean;
+  /** 是否已连接（响应式） */
+  connected: Ref<boolean>;
 
   /** 重置 Socket 连接 */
   reset: () => void;
@@ -39,6 +81,18 @@ interface UseSocketReturn {
  */
 export function useSocket(url?: string, options?: Partial<ManagerOptions & SocketOptions>): UseSocketReturn {
   const socket = getSocketInstance(url, options);
+  const connected = ref(socket.connected); // 使用 ref 跟踪连接状态
+
+  // 监听连接和断开事件
+  socket.on('connect', () => {
+    console.log('connect', socket.id);
+    connected.value = true;
+  });
+
+  socket.on('disconnect', () => {
+    console.log('disconnect', socket.id);
+    connected.value = false;
+  });
 
   /** 封装监听方法 */
   function listen<T>(event: string, callback: (data: T) => void): () => void {
@@ -51,12 +105,19 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
 
   /** 封装发送方法 */
   function emit(event: string, data?: unknown): void {
+    if (!connected.value) {
+      console.warn('Socket is not connected. Please check your connection.');
+      return;
+    }
+
+    console.log('emit', event, data);
     socket.emit(event, data);
   }
 
   /** 重置连接 */
   function reset(): void {
     resetSocketInstance();
+    connected.value = false; // 重置时标记为断开连接
   }
 
   // 组件卸载时自动取消所有监听
@@ -68,7 +129,7 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     socket,
     listen,
     emit,
-    connected: socket.connected,
+    connected, // 返回响应式的值
     reset
   };
 }

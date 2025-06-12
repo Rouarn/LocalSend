@@ -125,7 +125,7 @@ export const request = createFlatRequest<App.Service.Response, RequestInstanceSt
 
 export const demoRequest = createRequest<App.Service.DemoResponse>(
   {
-    baseURL: otherBaseURL.demo
+    baseURL: otherBaseURL.ws
   },
   {
     async onRequest(config) {

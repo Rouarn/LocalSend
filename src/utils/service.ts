@@ -53,6 +53,10 @@ export function getServiceBaseURL(env: Env.ImportMeta, isProxy: boolean) {
 
   other.forEach(item => {
     otherBaseURL[item.key] = isProxy ? item.proxyPattern : item.baseURL;
+
+    if (item.key === 'ws') {
+      otherBaseURL[item.key] = item.baseURL;
+    }
   });
 
   return {
