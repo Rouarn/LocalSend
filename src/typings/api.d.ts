@@ -84,4 +84,17 @@ declare namespace Api {
       home: import('@elegant-router/types').LastLevelRouteKey;
     }
   }
+
+  /**
+   * namespace Websocket
+   *
+   * backend api module: "websocket"
+   */
+  namespace Websocket {
+    interface OnlineUser {
+      socketId: string;
+      socketName: string;
+      ip: string;
+    }
+  }
 }

@@ -2,6 +2,7 @@ import type { Ref } from 'vue';
 import { onUnmounted, ref } from 'vue';
 import type { ManagerOptions, Socket, SocketOptions } from 'socket.io-client';
 import { io } from 'socket.io-client';
+import { useSocketStore } from '@/store/modules/socket';
 import { getServiceBaseURL } from '@/utils/service';
 
 let socketInstance: Socket | null = null;
@@ -13,6 +14,7 @@ interface WebSocketOptions extends Partial<ManagerOptions & SocketOptions> {
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
+const useWebSocket = useSocketStore();
 /**
  * 获取或创建 Socket.IO 实例
  *
@@ -87,6 +89,7 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
   socket.on('connect', () => {
     console.log('connect', socket.id);
     connected.value = true;
+    useWebSocket.setSocket(socket as any);
   });
 
   socket.on('disconnect', () => {

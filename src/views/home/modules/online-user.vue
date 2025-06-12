@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
 import { NAvatar, NButton, NList, NListItem, NSpace, NTag, NText } from 'naive-ui';
+import { useSocketStore } from '@/store/modules/socket';
 import { useSocket } from '@/hooks/business/useSocket';
 import Avatar from '@/assets/imgs/soybean.jpg';
 
 const { listen, emit, connected, reset } = useSocket();
+const useWebSocket = useSocketStore();
 
 interface OnlineUser {
-  socketId: number;
+  socketId: string;
   userName: string;
   ip: string;
   show: boolean;
+  current: boolean;
 }
 
 const onlineUsers = reactive<OnlineUser[]>([]);
@@ -18,6 +21,9 @@ const onlineUsers = reactive<OnlineUser[]>([]);
 listen('online_users', (data: OnlineUser[]) => {
   onlineUsers.splice(0, onlineUsers.length);
   data.forEach(user => {
+    if (user.socketId === useWebSocket.socket.socketId) {
+      user.current = true;
+    }
     onlineUsers.push({
       ...user,
       show: false
@@ -41,10 +47,10 @@ const handlePrivateChat = (user: OnlineUser) => {
       <NTag :type="connected ? 'success' : 'error'" round>
         {{ connected ? '已连接' : '未连接' }}
       </NTag>
-      <NButton v-if="!connected" type="primary" size="small" @click="reset">尝试重新连接</NButton>
 
       <NText depth="3">在线人数: {{ onlineUsers.length }}</NText>
     </div>
+    <NButton v-if="!connected" type="primary" size="small" @click="reset">尝试重新连接</NButton>
 
     <NList bordered class="list">
       <NListItem v-for="user in onlineUsers" :key="user.socketId">
@@ -59,7 +65,7 @@ const handlePrivateChat = (user: OnlineUser) => {
               <NText depth="3" size="small">{{ user.ip }}</NText>
             </NSpace>
           </NSpace>
-          <NPopconfirm v-model:show="user.show">
+          <NPopconfirm v-if="!user.current" v-model:show="user.show">
             <template #trigger>
               <NButton type="primary" size="small" ghost block>私聊</NButton>
             </template>
