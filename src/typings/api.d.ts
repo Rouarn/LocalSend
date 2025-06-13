@@ -117,6 +117,7 @@ declare namespace Api {
 
     interface Message {
       id: string;
+      roomId?: string;
       senderId: string;
       type?: 'text' | 'image' | 'file' | 'video' | 'audio';
       content?: string | File;

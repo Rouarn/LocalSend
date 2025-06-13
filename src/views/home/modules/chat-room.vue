@@ -127,6 +127,7 @@ const uploadFiles = async () => {
     selectedFiles.value.forEach(file => {
       const message: Api.Websocket.Message = {
         id: Date.now().toString(),
+        roomId: props.roomId,
         text: `[文件] ${file.name}`,
         senderId: props.currentUser.socketId,
         timestamp: new Date(),
@@ -166,6 +167,7 @@ const sendMessage = () => {
   const message: Api.Websocket.Message = {
     id: Date.now().toString(),
     text: newMessage.value,
+    roomId: props.roomId,
     senderId: props.currentUser.socketId,
     timestamp: new Date(),
     status: 'sending'
