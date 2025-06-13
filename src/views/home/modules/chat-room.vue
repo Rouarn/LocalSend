@@ -21,6 +21,7 @@ const onlineUsers = ref<Api.Websocket.OnlineUser[]>([]);
 const showEmojiPopover = ref(false);
 const messageInputRef = ref<InputInst | HTMLTextAreaElement | null>(null);
 const messagesContainerRef = ref<HTMLElement | null>(null);
+const showMoreFunction = ref(false);
 
 // 计算属性
 const isCurrentUser = (userId: string) => userId === props.currentUser.socketId;
@@ -366,15 +367,48 @@ const listeneMessage = (data: Api.Websocket.Message) => {
   messages.value.push(data);
 };
 
+// 在 script setup 中添加这些方法
+const startVideoCall = () => {
+  showMoreFunction.value = false;
+  // 实现视频通话逻辑
+  console.log('发起视频通话');
+};
+
+const startVoiceCall = () => {
+  showMoreFunction.value = false;
+  // 实现语音通话逻辑
+  console.log('发起语音通话');
+};
+
+const showSettings = () => {
+  showMoreFunction.value = false;
+  // 显示设置面板
+  console.log('显示聊天设置');
+};
+
+const reset = () => {
+  showMoreFunction.value = false;
+  showEmojiPopover.value = false;
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') {
+    reset();
+  }
+};
+
 // 初始化
 onMounted(() => {
   scrollToBottom();
   mittBus.on('listen:onlineUsers', setOnlineUsers);
   listen('listen:message', listeneMessage);
+
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
   mittBus.off('listen:onlineUsers');
+  window.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
@@ -401,11 +435,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 消息区域 - 优化背景和布局 -->
-    <NScrollbar
-      ref="messagesContainerRef"
-      class="Container flex-1 bg-gray-50 p-4"
-      @click.stop="showEmojiPopover = false"
-    >
+    <NScrollbar ref="messagesContainerRef" class="Container flex-1 bg-gray-50 p-4" @click.stop="reset()">
       <div class="mx-auto max-w-[90%]">
         <TransitionGroup name="message">
           <div
@@ -562,39 +592,113 @@ onUnmounted(() => {
     <!-- 输入区域 - 优化样式 -->
     <div class="border-t border-gray-200/50 bg-white/90 pb-2 shadow-inner backdrop-blur-sm">
       <!-- 表情面板 -->
-      <div
-        v-if="showEmojiPopover"
-        class="h-48 overflow-y-auto border-t border-gray-200/50 bg-white/95 p-2 shadow-inner"
-      >
-        <div class="sticky top-0 flex border-b border-gray-100 bg-white">
-          <button
-            v-for="(category, index) in emojiCategories"
-            :key="category.name"
-            class="px-4 py-2 text-sm transition-colors"
-            :class="[
-              activeEmojiCategory === index
-                ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
-                : 'text-gray-500 hover:text-gray-700'
-            ]"
-            @click="activeEmojiCategory = index"
-          >
-            {{ category.name }}
-          </button>
+      <TransitionGroup name="more-function">
+        <div
+          v-if="showEmojiPopover"
+          class="h-48 overflow-y-auto border-t border-gray-200/50 bg-white/95 p-2 shadow-inner"
+        >
+          <div class="sticky top-0 flex border-b border-gray-100 bg-white">
+            <button
+              v-for="(category, index) in emojiCategories"
+              :key="category.name"
+              class="px-4 py-2 text-sm transition-colors"
+              :class="[
+                activeEmojiCategory === index
+                  ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
+                  : 'text-gray-500 hover:text-gray-700'
+              ]"
+              @click="activeEmojiCategory = index"
+            >
+              {{ category.name }}
+            </button>
+          </div>
+          <div class="grid grid-cols-8 gap-1 p-2">
+            <button
+              v-for="emoji in emojiCategories[activeEmojiCategory].emojis"
+              :key="emoji"
+              class="rounded p-1 text-center text-xl transition-colors hover:scale-110 hover:bg-gray-100"
+              @click="addEmoji(emoji)"
+            >
+              {{ emoji }}
+            </button>
+          </div>
         </div>
-        <div class="grid grid-cols-8 gap-1 p-2">
-          <button
-            v-for="emoji in emojiCategories[activeEmojiCategory].emojis"
-            :key="emoji"
-            class="rounded p-1 text-center text-xl transition-colors hover:scale-110 hover:bg-gray-100"
-            @click="addEmoji(emoji)"
-          >
-            {{ emoji }}
-          </button>
+      </TransitionGroup>
+
+      <!-- 更多功能 -->
+      <!-- 更多功能面板 -->
+      <TransitionGroup name="more-function">
+        <div
+          v-if="showMoreFunction"
+          class="absolute bottom-[80px] left-4 z-10 w-64 overflow-hidden border border-gray-200 rounded-lg bg-white shadow-lg"
+        >
+          <div class="divide-y divide-gray-100">
+            <!-- 功能分组1：通讯 -->
+            <div class="p-2">
+              <h3 class="px-2 py-1 text-xs text-gray-500 font-medium">通讯功能</h3>
+              <div class="space-y-1">
+                <button
+                  class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                  @click="startVideoCall"
+                >
+                  <icon-material-symbols:auto-videocam-sharp class="h-5 w-5 text-blue-500" />
+                  <span>视频通话</span>
+                  <span class="ml-auto text-xs text-gray-400">Beta</span>
+                </button>
+                <button
+                  class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                  @click="startVoiceCall"
+                >
+                  <icon-material-symbols:call-outline-rounded class="h-5 w-5 text-green-500" />
+                  <span>语音通话</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 功能分组2：未来扩展区域 -->
+            <div class="p-2">
+              <h3 class="px-2 py-1 text-xs text-gray-500 font-medium">其他功能</h3>
+              <div class="space-y-1">
+                <!-- 预留扩展位置1 -->
+                <button
+                  v-if="false"
+                  class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                  <icon-heroicons-solid:device-phone-mobile class="h-5 w-5 text-purple-500" />
+                  <span>屏幕共享</span>
+                </button>
+
+                <!-- 预留扩展位置2 -->
+                <button
+                  v-if="false"
+                  class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                  <icon-material-symbols:group-outline class="h-5 w-5 text-orange-500" />
+                  <span>创建群聊</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 功能分组3：设置 -->
+            <div class="p-2">
+              <button
+                class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                @click="showSettings"
+              >
+                <icon-material-symbols:settings-outline class="h-5 w-5 text-gray-500" />
+                <span>聊天设置</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <!-- 输入工具栏 -->
       <div class="flex items-center px-3 py-2">
+        <NButton text class="mr-2" @click="showMoreFunction = !showMoreFunction">
+          <icon-weui:more2-outlined size="24" />
+        </NButton>
+
         <NButton
           text
           class="rounded-full p-2 text-gray-500 hover:bg-gray-100/50"
@@ -761,6 +865,16 @@ onUnmounted(() => {
 }
 .message-enter-from,
 .message-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.more-function-enter-active,
+.more-function-leave-active {
+  transition: all 0.2s ease;
+}
+.more-function-enter-from,
+.more-function-leave-to {
   opacity: 0;
   transform: translateY(10px);
 }
