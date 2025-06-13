@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { NAvatar, NButton, NInput, NScrollbar, NSpace } from 'naive-ui';
+import { NAvatar, NButton, NImage, NInput, NScrollbar, NSpace } from 'naive-ui';
 import type { InputInst } from 'naive-ui';
 import dayjs from 'dayjs';
 import { useSocket } from '@/hooks/business/useSocket';
@@ -413,6 +413,61 @@ onUnmounted(() => {
                     ]"
                   >
                     <div class="break-words text-sm">{{ message.text }}</div>
+
+                    <!-- 如果是图片，显示预览文件 -->
+                    <!-- 文件/图片预览部分 -->
+                    <div v-if="message?.file" class="mt-2">
+                      <div
+                        class="inline-block overflow-hidden border border-gray-200 rounded-lg bg-gray-50 shadow-sm transition-all hover:shadow-md"
+                        :class="{
+                          'max-w-[300px]': message.file.type?.startsWith('image'),
+                          'max-h-[250px]': !message.file.type?.startsWith('image')
+                        }"
+                      >
+                        <!-- 图片预览 -->
+                        <template v-if="message.file.type?.startsWith('image') && message.file.url">
+                          <NImage
+                            :src="message.file.url"
+                            :alt="message.file.name || '图片'"
+                            class="block cursor-pointer"
+                            :img-props="{
+                              class: 'max-h-[200px] w-auto object-cover'
+                            }"
+                            :preview-disabled="false"
+                          />
+                          <div class="p-2 text-xs text-gray-600">
+                            <div class="truncate font-medium">{{ message.file.name || '未命名图片' }}</div>
+                            <div v-if="message.file.size" class="flex items-center justify-between text-gray-500">
+                              <span>{{ (message.file.size / 1024).toFixed(1) }} KB</span>
+                              <span>{{ message.file.type?.split('/')[1]?.toUpperCase() || 'IMAGE' }}</span>
+                            </div>
+                          </div>
+                        </template>
+
+                        <!-- 非图片文件预览 -->
+                        <template v-else>
+                          <div class="flex items-center p-3">
+                            <div class="h-12 w-12 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+                              <icon-ic:baseline-insert-drive-file size="24" />
+                            </div>
+                            <div class="ml-3 min-w-0 flex-1">
+                              <div class="truncate text-sm text-gray-800 font-medium">
+                                {{ message.file.name || '未命名文件' }}
+                              </div>
+                              <div
+                                v-if="message.file.size || message.file.type"
+                                class="flex items-center justify-between text-xs text-gray-500"
+                              >
+                                <span v-if="message.file.size">{{ (message.file.size / 1024).toFixed(1) }} KB</span>
+                                <span v-if="message.file.type">
+                                  {{ message.file.type.split('/').pop()?.toUpperCase() || 'FILE' }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- 消息时间和状态 -->

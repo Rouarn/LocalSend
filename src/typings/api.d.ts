@@ -124,6 +124,7 @@ declare namespace Api {
       timestamp: Date;
       status: 'sending' | 'sent' | 'failed';
       text: string;
+      file?: { url: string } & Partial<File>;
       [key: string]: any;
     }
   }
