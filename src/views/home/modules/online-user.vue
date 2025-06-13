@@ -3,22 +3,15 @@ import { reactive } from 'vue';
 import { NAvatar, NButton, NList, NListItem, NSpace, NTag, NText } from 'naive-ui';
 import { useSocketStore } from '@/store/modules/socket';
 import { useSocket } from '@/hooks/business/useSocket';
+import mittBus from '@/utils/mittBus';
 import Avatar from '@/assets/imgs/soybean.jpg';
 
 const { listen, emit, connected, reset } = useSocket();
 const useWebSocket = useSocketStore();
 
-interface OnlineUser {
-  socketId: string;
-  userName: string;
-  ip: string;
-  show: boolean;
-  current: boolean;
-}
+const onlineUsers = reactive<Api.Websocket.OnlineUserWithState[]>([]);
 
-const onlineUsers = reactive<OnlineUser[]>([]);
-
-listen('online_users', (data: OnlineUser[]) => {
+listen('online_users', (data: Api.Websocket.OnlineUserWithState[]) => {
   onlineUsers.splice(0, onlineUsers.length);
   data.forEach(user => {
     if (user.socketId === useWebSocket.socket.socketId) {
@@ -29,11 +22,13 @@ listen('online_users', (data: OnlineUser[]) => {
       show: false
     });
   });
+
+  mittBus.emit('online_users', onlineUsers);
 });
 
-const handlePrivateChat = (user: OnlineUser) => {
+const handlePrivateChat = (user: Api.Websocket.OnlineUser & { show: boolean }) => {
   user.show = false;
-  window.$message?.success(`准备与 ${user.userName} 私聊`);
+  window.$message?.success(`准备与 ${user.socketName} 私聊`);
   emit('private_chat', {
     targetId: user.socketId,
     message: '你好，我们可以聊聊吗？'
@@ -59,7 +54,7 @@ const handlePrivateChat = (user: OnlineUser) => {
             <NAvatar size="medium" :src="Avatar" round />
             <NSpace vertical :size="4">
               <NSpace align="center" :size="8">
-                <NText strong>{{ user.userName }}</NText>
+                <NText strong>{{ user.socketName }}</NText>
                 <NTag size="small" type="info" round>bubble</NTag>
               </NSpace>
               <NText depth="3" size="small">{{ user.ip }}</NText>
@@ -70,7 +65,7 @@ const handlePrivateChat = (user: OnlineUser) => {
               <NButton type="primary" size="small" ghost block>私聊</NButton>
             </template>
             <template #default>
-              <NText>是否与 {{ user.userName }} 私聊？</NText>
+              <NText>是否与 {{ user.socketName }} 私聊？</NText>
             </template>
             <template #action>
               <NButton size="small" ghost @click="user.show = false">取消</NButton>

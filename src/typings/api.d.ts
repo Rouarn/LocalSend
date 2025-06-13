@@ -95,6 +95,13 @@ declare namespace Api {
       socketId: string;
       socketName: string;
       ip: string;
+      avatar?: string;
+    }
+
+    // 新增带扩展属性的类型
+    interface OnlineUserWithState extends OnlineUser {
+      show: boolean;
+      current?: boolean;
     }
   }
 }

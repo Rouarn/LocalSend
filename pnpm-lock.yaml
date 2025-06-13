@@ -50,6 +50,9 @@ importers:
       json5:
         specifier: 2.2.3
         version: 2.2.3
+      mitt:
+        specifier: ^3.0.1
+        version: 3.0.1
       naive-ui:
         specifier: 2.41.1
         version: 2.41.1(vue@3.5.16(typescript@5.8.3))
