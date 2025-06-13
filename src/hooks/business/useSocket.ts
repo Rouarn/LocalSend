@@ -126,7 +126,7 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
         emitLogInfo({
           id: 'socket-callback',
           type: 'info',
-          message: `服务器已收到:  ${event}, 数据: ${JSON.stringify(data)}`
+          message: `服务器已收到:  ${event}`
         });
 
         resolve(cb);

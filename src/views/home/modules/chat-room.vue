@@ -388,9 +388,11 @@ const showSettings = () => {
   console.log('显示聊天设置');
 };
 
-const reset = () => {
+const reset = async () => {
   showMoreFunction.value = false;
-  showEmojiPopover.value = false;
+  setTimeout(() => {
+    showEmojiPopover.value = false;
+  }, 200);
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -430,7 +432,7 @@ onUnmounted(() => {
           <span v-if="!isPrivateChat" class="text-sm text-white/90">{{ onlineUsers.length }}人在线</span>
           <div class="flex items-center space-x-2">
             <span class="text-sm text-white/90">{{ currentUser.socketName }}</span>
-            <NAvatar round :src="currentUser.avatar" size="small" class="border-2 border-white/30 shadow-sm" />
+            <icon-oui:online class="text-5 c-green/300 shadow-sm" />
           </div>
         </NSpace>
       </NSpace>
@@ -706,7 +708,7 @@ onUnmounted(() => {
           class="rounded-full p-2 text-gray-500 hover:bg-gray-100/50"
           @click="showEmojiPopover = !showEmojiPopover"
         >
-          <icon-ic:baseline-emoji-emotions size="24" />
+          <icon-ic:outline-emoji-emotions size="24" />
         </NButton>
 
         <NButton text class="ml-1 rounded-full p-2 text-gray-500 hover:bg-gray-100/50" @click="selectFiles">
@@ -745,7 +747,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 修改后的输入工具栏 -->
-    <div class="border-t border-gray-200/50 bg-white/90 pb-2 shadow-inner backdrop-blur-sm">
+    <div class="border-t border-gray-200/50 bg-white/90 shadow-inner backdrop-blur-sm">
       <!-- 已选文件预览区域 -->
       <div v-if="selectedFiles.length > 0" class="border-b border-gray-200/50 px-3 py-2">
         <div class="mb-2 flex items-center justify-between">
