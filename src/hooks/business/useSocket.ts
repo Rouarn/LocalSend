@@ -4,6 +4,7 @@ import type { ManagerOptions, Socket, SocketOptions } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { useSocketStore } from '@/store/modules/socket';
 import { getServiceBaseURL } from '@/utils/service';
+import { emitLogInfo } from '@/utils/mittBus';
 
 let socketInstance: Socket | null = null;
 
@@ -90,11 +91,21 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     console.log('connect', socket.id);
     connected.value = true;
     useWebSocket.setSocket(socket as any);
+    emitLogInfo({
+      id: 'socket-connect',
+      type: 'success',
+      message: 'Socket.IO 连接成功'
+    });
   });
 
   socket.on('disconnect', () => {
     console.log('disconnect', socket.id);
     connected.value = false;
+    emitLogInfo({
+      id: 'socket-disconnect',
+      type: 'error',
+      message: 'Socket.IO 断开连接'
+    });
   });
 
   /** 封装监听方法 */
@@ -113,8 +124,12 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
       return;
     }
 
-    console.log('emit', event, data);
     socket.emit(event, data);
+    emitLogInfo({
+      id: 'socket-emit',
+      type: 'info',
+      message: `Socket.IO 发送数据 ${event}: ${JSON.stringify(data)}`
+    });
   }
 
   /** 重置连接 */

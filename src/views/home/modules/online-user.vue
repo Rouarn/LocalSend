@@ -3,7 +3,7 @@ import { reactive } from 'vue';
 import { NAvatar, NButton, NList, NListItem, NSpace, NTag, NText } from 'naive-ui';
 import { useSocketStore } from '@/store/modules/socket';
 import { useSocket } from '@/hooks/business/useSocket';
-import mittBus from '@/utils/mittBus';
+import mittBus, { emitLogInfo } from '@/utils/mittBus';
 import Avatar from '@/assets/imgs/soybean.jpg';
 
 const { listen, emit, connected, reset } = useSocket();
@@ -11,19 +11,23 @@ const useWebSocket = useSocketStore();
 
 const onlineUsers = reactive<Api.Websocket.OnlineUserWithState[]>([]);
 
-listen('online_users', (data: Api.Websocket.OnlineUserWithState[]) => {
+listen('listen:onlineUsers', (data: Api.Websocket.OnlineUserWithState[]) => {
   onlineUsers.splice(0, onlineUsers.length);
   data.forEach(user => {
     if (user.socketId === useWebSocket.socket.socketId) {
       user.current = true;
+      onlineUsers.unshift(user);
+      return;
     }
-    onlineUsers.push({
-      ...user,
-      show: false
-    });
+    onlineUsers.push({ ...user, show: false });
   });
 
-  mittBus.emit('online_users', onlineUsers);
+  mittBus.emit('listen:onlineUsers', onlineUsers);
+  emitLogInfo({
+    id: 'online_users',
+    type: 'info',
+    message: `当前在线人数: ${onlineUsers.length}`
+  });
 });
 
 const handlePrivateChat = (user: Api.Websocket.OnlineUser & { show: boolean }) => {
@@ -47,8 +51,8 @@ const handlePrivateChat = (user: Api.Websocket.OnlineUser & { show: boolean }) =
     </div>
     <NButton v-if="!connected" type="primary" size="small" @click="reset">尝试重新连接</NButton>
 
-    <NList bordered class="list">
-      <NListItem v-for="user in onlineUsers" :key="user.socketId">
+    <NList class="list" clickable hoverable bordered show-divider>
+      <NListItem v-for="user in onlineUsers" :key="user.socketId" class="">
         <NSpace align="center" justify="space-between" :wrap-item="false">
           <NSpace align="center" :wrap-item="false">
             <NAvatar size="medium" :src="Avatar" round />

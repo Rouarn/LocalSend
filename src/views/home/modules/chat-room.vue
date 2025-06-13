@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { NAvatar, NButton, NInput, NScrollbar, NSpace } from 'naive-ui';
 import type { InputInst } from 'naive-ui';
 import mittBus from '@/utils/mittBus';
@@ -18,58 +18,16 @@ const props = defineProps<{
   isPrivateChat: boolean;
   currentUser: Api.Websocket.OnlineUser;
 }>();
-console.log(props, 'props');
 
 const messages = ref<Message[]>([]);
 const newMessage = ref('');
 const onlineUsers = ref<Api.Websocket.OnlineUser[]>([]);
 const showEmojiPopover = ref(false);
 const messageInputRef = ref<InputInst | HTMLTextAreaElement | null>(null);
-
 const messagesContainerRef = ref<HTMLElement | null>(null);
 
 // 计算属性
 const isCurrentUser = (userId: string) => userId === props.currentUser.socketId;
-
-// 初始化模拟数据
-// const initMockData = () => {
-//   messages.value = [
-//     {
-//       id: '1',
-//       text: '你好！欢迎加入聊天室！',
-//       senderId: 'system',
-//       timestamp: new Date(Date.now() - 3600000)
-//     },
-//     {
-//       id: '2',
-//       text: '大家好！很高兴见到你们！',
-//       senderId: props.currentUser.socketId,
-//       timestamp: new Date(Date.now() - 1800000)
-//     },
-//     {
-//       id: '3',
-//       text: '你们今天有什么计划吗？',
-//       senderId: 'user2',
-//       timestamp: new Date(Date.now() - 900000)
-//     }
-//   ];
-
-//   onlineUsers.value = [
-//     props.currentUser,
-//     {
-//       socketId: 'user2',
-//       name: '张三',
-//       avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-//       online: true
-//     },
-//     {
-//       socketId: 'user3',
-//       name: '李四',
-//       avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-//       online: true
-//     }
-//   ];
-// };
 
 // 发送消息
 const sendMessage = () => {
@@ -104,9 +62,16 @@ const addEmoji = (emoji: string) => {
 
 // 滚动到底部
 const scrollToBottom = () => {
+  console.log(111);
+  console.dir(messagesContainerRef.value);
   nextTick(() => {
     if (messagesContainerRef.value) {
-      messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+      const container = document.querySelector('.Container .n-scrollbar-content');
+      if (container) {
+        messagesContainerRef.value.scrollTo({ left: 0, top: container.scrollHeight, behavior: 'smooth' });
+        return;
+      }
+      messagesContainerRef.value.scrollTo({ left: 0, top: 99999999999, behavior: 'smooth' });
     }
   });
 };
@@ -140,14 +105,7 @@ const getUserAvatar = (userId: string) => {
   return user ? user.avatar : 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg';
 };
 
-const selectFiles = () => {
-  console.log('selectFiles');
-};
-
-// 初始化
-onMounted(() => {
-  scrollToBottom();
-});
+const selectFiles = () => {};
 
 // 监听消息变化
 watch(messages, scrollToBottom, { deep: true });
@@ -248,102 +206,138 @@ const emojiCategories = [
 
 const activeEmojiCategory = ref(0);
 
-mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
-  console.log('users: ', users);
+mittBus.on('listen:onlineUsers', (users: Api.Websocket.OnlineUser[]) => {
   onlineUsers.value.splice(0, onlineUsers.value.length);
   users.forEach(user => {
     onlineUsers.value.push(user);
   });
+  console.log(onlineUsers.value, 'onlineUsers');
+});
+
+// 初始化
+onMounted(() => {
+  scrollToBottom();
+});
+
+onUnmounted(() => {
+  mittBus.off('listen:onlineUsers');
 });
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-gray-50">
-    <!-- 头部 - 调整为微信风格 -->
-    <div class="bg-[#2e2e2e] p-3 text-white">
-      <NSpace align="center" justify="space-between">
+  <div class="h-full flex flex-col bg-[#f5f5f5]">
+    <!-- 头部 - 优化样式 -->
+    <div class="bg-[#2e2e2e] p-3 text-white shadow-sm">
+      <NSpace align="center" justify="space-between" class="px-2">
         <NSpace align="center">
-          <h2 class="m-0 text-lg font-semibold">{{ roomName }}</h2>
-          <span v-if="isPrivateChat" class="rounded bg-[#3a3a3a] px-1.5 py-0.5 text-xs text-gray-300">私聊</span>
+          <h2 class="m-0 text-lg text-white font-semibold">{{ roomName }}</h2>
+          <span v-if="isPrivateChat" class="rounded-full bg-[#3a3a3a] px-2 py-0.5 text-xs text-gray-300">私聊</span>
         </NSpace>
 
-        <NSpace align="center">
+        <NSpace align="center" :size="12">
           <span v-if="!isPrivateChat" class="text-xs text-gray-300">{{ onlineUsers.length }}人在线</span>
-          <NAvatar
-            round
-            :src="currentUser.avatar"
-            fallback-src="https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg"
-            size="small"
-          />
+          <div class="flex items-center">
+            <span class="mr-2 text-sm">{{ currentUser.socketName }}</span>
+            <NAvatar round :src="currentUser.avatar" size="small" class="border border-white/20" />
+          </div>
         </NSpace>
       </NSpace>
     </div>
 
-    <!-- 消息区域 - 背景调整为微信风格 -->
-    <NScrollbar ref="messagesContainerRef" class="flex-1 bg-[#ededed] p-4" @click.stop="showEmojiPopover = false">
-      <div v-for="(message, index) in messages" :key="message.id" class="mb-3">
-        <div class="flex" :class="[isCurrentUser(message.senderId) ? 'justify-end' : 'justify-start']">
-          <NAvatar
-            v-if="!isCurrentUser(message.senderId) && shouldShowSender(message, index)"
-            round
-            :src="getUserAvatar(message.senderId)"
-            fallback-src="https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg"
-            size="small"
-            class="mr-2 mt-1 self-start"
-          />
+    <!-- 消息区域 - 优化背景和布局 -->
+    <NScrollbar
+      ref="messagesContainerRef"
+      class="Container flex-1 bg-[#e5e5e5] p-4"
+      @click.stop="showEmojiPopover = false"
+    >
+      <div class="mx-auto max-w-[90%]">
+        <div v-for="(message, index) in messages" :key="message.id" class="mb-4">
+          <div class="flex" :class="[isCurrentUser(message.senderId) ? 'justify-end' : 'justify-start']">
+            <!-- 接收方头像 -->
+            <NAvatar
+              v-if="!isCurrentUser(message.senderId) && shouldShowSender(message, index)"
+              round
+              :src="getUserAvatar(message.senderId)"
+              size="small"
+              class="mr-2 mt-1 self-start"
+            />
 
-          <NSpace vertical :size="0">
-            <div class="flex flex-col">
-              <div v-if="shouldShowSender(message, index)" class="mb-1 text-xs text-gray-600 font-medium">
+            <div
+              class="max-w-[80%] flex flex-col"
+              :class="[isCurrentUser(message.senderId) ? 'items-end' : 'items-start']"
+            >
+              <!-- 发送者名称 -->
+              <div
+                v-if="shouldShowSender(message, index)"
+                class="mb-1 text-xs font-medium"
+                :class="[isCurrentUser(message.senderId) ? 'text-gray-600' : 'text-gray-600']"
+              >
                 {{ getSenderName(message.senderId) }}
               </div>
 
+              <!-- 消息气泡 -->
               <div
-                class="rounded-lg px-3 py-2 shadow"
+                class="rounded-lg px-4 py-2 shadow-sm"
                 :class="[
                   isCurrentUser(message.senderId)
                     ? 'bg-[#95ec69] text-black rounded-br-none'
                     : 'bg-white text-gray-800 rounded-bl-none'
                 ]"
               >
-                <div class="break-words">{{ message.text }}</div>
+                <div class="break-words text-sm">{{ message.text }}</div>
+              </div>
+
+              <!-- 消息时间和状态 -->
+              <div
+                class="mt-1 flex items-center text-xs"
+                :class="[isCurrentUser(message.senderId) ? 'flex-row-reverse' : '']"
+              >
+                <span class="mx-1 text-gray-500">
+                  {{ formatTime(message.timestamp) }}
+                </span>
+                <span
+                  v-if="isCurrentUser(message.senderId)"
+                  class="text-xs"
+                  :class="[
+                    message.status === 'sending'
+                      ? 'text-gray-400'
+                      : message.status === 'failed'
+                        ? 'text-red-400'
+                        : 'text-blue-400'
+                  ]"
+                >
+                  {{ message.status === 'sending' ? '...' : message.status === 'failed' ? '发送失败' : '✓' }}
+                </span>
               </div>
             </div>
-            <div
-              class="mt-1 flex items-center text-xs"
-              :class="[isCurrentUser(message.senderId) ? 'justify-end' : 'justify-start']"
-            >
-              <span class="text-gray-500" :class="[isCurrentUser(message.senderId) ? 'order-last ml-1' : 'mr-1']">
-                {{ formatTime(message.timestamp) }}
-              </span>
-              <span
-                v-if="isCurrentUser(message.senderId)"
-                :class="[
-                  message.status === 'sending'
-                    ? 'text-gray-400'
-                    : message.status === 'failed'
-                      ? 'text-red-400'
-                      : 'text-blue-400'
-                ]"
-              >
-                {{ message.status === 'sending' ? '...' : message.status === 'failed' ? '!' : '✓' }}
-              </span>
-            </div>
-          </NSpace>
+
+            <!-- 发送方头像 -->
+            <NAvatar
+              v-if="isCurrentUser(message.senderId) && shouldShowSender(message, index)"
+              round
+              :src="currentUser.avatar"
+              size="small"
+              class="order-1 ml-2 mt-1 self-start"
+            />
+          </div>
         </div>
       </div>
     </NScrollbar>
 
-    <!-- 微信风格输入区域 -->
-    <div class="border-t border-gray-200 bg-[#f5f5f5]">
+    <!-- 输入区域 - 优化样式 -->
+    <div class="border-t border-gray-200 bg-white pb-2 shadow-sm">
       <!-- 表情面板 -->
-      <div v-if="showEmojiPopover" class="h-48 overflow-y-auto border-t border-gray-200 bg-white p-2">
+      <div v-if="showEmojiPopover" class="h-48 overflow-y-auto border-t border-gray-200 bg-white p-2 shadow-inner">
         <div class="sticky top-0 flex border-b border-gray-100 bg-white">
           <button
             v-for="(category, index) in emojiCategories"
             :key="category.name"
-            class="px-4 py-2 text-sm"
-            :class="[activeEmojiCategory === index ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500']"
+            class="px-4 py-2 text-sm transition-colors"
+            :class="[
+              activeEmojiCategory === index
+                ? 'text-blue-500 border-b-2 border-blue-500 font-medium'
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
             @click="activeEmojiCategory = index"
           >
             {{ category.name }}
@@ -353,7 +347,7 @@ mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
           <button
             v-for="emoji in emojiCategories[activeEmojiCategory].emojis"
             :key="emoji"
-            class="rounded p-1 text-center text-xl hover:bg-gray-100"
+            class="rounded p-1 text-center text-xl transition-colors hover:scale-110 hover:bg-gray-100"
             @click="addEmoji(emoji)"
           >
             {{ emoji }}
@@ -362,33 +356,17 @@ mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
       </div>
 
       <!-- 输入工具栏 -->
-      <div class="flex items-center p-2">
+      <div class="flex items-center px-3 py-1">
         <NButton
           text
-          class="rounded-full p-2 text-gray-500 hover:bg-gray-200"
+          class="rounded-full p-2 text-gray-500 hover:bg-gray-100"
           @click="showEmojiPopover = !showEmojiPopover"
         >
-          <icon-ic:baseline-add-circle size="24" />
+          <icon-ic:baseline-emoji-emotions size="24" />
         </NButton>
 
-        <NButton text class="ml-1 rounded-full p-2 text-gray-500 hover:bg-gray-200" @click="selectFiles">
-          <NIcon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-          </NIcon>
+        <NButton text class="ml-1 rounded-full p-2 text-gray-500 hover:bg-gray-100" @click="selectFiles">
+          <icon-ic:baseline-attach-file size="24" />
         </NButton>
 
         <div class="mx-2 flex-1">
@@ -401,7 +379,7 @@ mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
               minRows: 1,
               maxRows: 4
             }"
-            class="rounded-full bg-white px-4"
+            class="rounded-full bg-gray-100 px-4 transition-all focus:bg-white hover:bg-gray-50"
             @keydown.enter.exact.prevent="sendMessage"
           />
         </div>
@@ -410,25 +388,10 @@ mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
           type="primary"
           circle
           :disabled="!newMessage.trim()"
-          class="bg-[#07c160] hover:bg-[#06ad56]"
+          class="ml-1 h-10 w-10 bg-[#07c160] hover:bg-[#06ad56]"
           @click="sendMessage"
         >
-          <NIcon>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </NIcon>
+          <icon-ic:baseline-send class="text-white" />
         </NButton>
       </div>
     </div>
@@ -436,17 +399,44 @@ mittBus.on('online_users', (users: Api.Websocket.OnlineUser[]) => {
 </template>
 
 <style lang="scss" scoped>
-/* 微调滚动条样式 */
+/* 优化滚动条样式 */
 :deep(.n-scrollbar-rail) {
   opacity: 0.3;
+
+  &.n-scrollbar-rail--vertical {
+    right: 2px;
+  }
 }
 
-/* 输入框圆角调整 */
+/* 输入框优化 */
 :deep(.n-input) {
   textarea {
     border-radius: 18px !important;
     resize: none;
     line-height: 1.5;
+    box-shadow: none !important;
+    transition: all 0.2s ease;
+
+    &:focus {
+      background: white !important;
+      box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1) !important;
+    }
+  }
+}
+
+/* 消息气泡动画 */
+.message-enter-active,
+.message-leave-active {
+  transition: all 0.3s ease;
+}
+.message-enter-from,
+.message-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+:deep(.n-input textarea) {
+  &:focus {
     box-shadow: none !important;
   }
 }

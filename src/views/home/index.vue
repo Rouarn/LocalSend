@@ -2,6 +2,7 @@
 import { useSocketStore } from '@/store/modules/socket';
 import OnlineUser from '@/views/home/modules/online-user.vue';
 import ChatRoom from './modules/chat-room.vue';
+import LogRecord from './modules/log-record.vue';
 
 const socketStore = useSocketStore();
 </script>
@@ -19,7 +20,7 @@ const socketStore = useSocketStore();
 
         <NLayoutContent class="flex-1 pa-0 text-xs">
           <ChatRoom
-            room-id="PUBLIC-ROOM"
+            room-id="PUBLIC_ROOM"
             room-name="Public Room"
             :is-private-chat="false"
             :current-user="socketStore.socket"
@@ -27,7 +28,9 @@ const socketStore = useSocketStore();
         </NLayoutContent>
       </NLayout>
     </NLayout>
-    <NLayoutFooter bordered class="h-xs pa-20px lt-lg:h-8rem">城府路</NLayoutFooter>
+    <NLayoutFooter bordered class="h-xs pa-20px lt-lg:h-8rem">
+      <LogRecord />
+    </NLayoutFooter>
   </NLayout>
 </template>
 

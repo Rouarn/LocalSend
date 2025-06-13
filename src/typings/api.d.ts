@@ -103,5 +103,11 @@ declare namespace Api {
       show: boolean;
       current?: boolean;
     }
+
+    interface LogInfo {
+      id: string;
+      message: string;
+      type: 'info' | 'warn' | 'error' | 'debug' | 'success';
+    }
   }
 }
