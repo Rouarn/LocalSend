@@ -214,7 +214,6 @@ const setOnlineUsers = (users: Api.Websocket.OnlineUser[]) => {
 };
 
 const listeneMessage = (data: Api.Websocket.Message) => {
-  console.log('listeneMessage: ', data);
   if (data.senderId === props.currentUser.socketId) return;
   messages.value.push(data);
 };

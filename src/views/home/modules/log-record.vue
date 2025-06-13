@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import { NButton, NInput, NScrollbar, NSpace, NTag } from 'naive-ui';
 import mittBus from '@/utils/mittBus';
 
 const logs = ref<Api.Websocket.LogInfo[]>([]);
 const searchText = ref('');
 const autoScroll = ref(true);
+const logContainerRef = useTemplateRef('logContainer');
 
 // 滚动到底部
 const scrollToBottom = () => {
   nextTick(() => {
-    const container = document.querySelector('.log-container');
-    if (container) {
-      container.scrollTop = container.scrollHeight;
+    if (logContainerRef.value) {
+      const container = document.querySelector('.log-container  .n-scrollbar-content');
+
+      if (container) {
+        logContainerRef.value.scrollTo({ left: 0, top: container.scrollHeight, behavior: 'smooth' });
+        return;
+      }
+      logContainerRef.value.scrollTo({ left: 0, top: 99999999999, behavior: 'smooth' });
     }
   });
 };
@@ -96,7 +102,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 日志内容区域 -->
-    <NScrollbar class="log-container">
+    <NScrollbar ref="logContainer" class="log-container">
       <div class="log-content">
         <div v-for="log in filteredLogs" :key="log.id" class="log-item" :class="`type-${log.type}`">
           <div class="log-time">{{ formatTime() }}</div>
