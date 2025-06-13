@@ -66,7 +66,7 @@ interface UseSocketReturn {
    * @param event 事件名称
    * @param data 发送的数据
    */
-  emit: (event: string, data?: unknown) => void;
+  emit: (event: string, data?: unknown) => Promise<any>;
 
   /** 是否已连接（响应式） */
   connected: Ref<boolean>;
@@ -88,7 +88,6 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
 
   // 监听连接和断开事件
   socket.on('connect', () => {
-    console.log('connect', socket.id);
     connected.value = true;
     useWebSocket.setSocket(socket as any);
     emitLogInfo({
@@ -99,7 +98,6 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
   });
 
   socket.on('disconnect', () => {
-    console.log('disconnect', socket.id);
     connected.value = false;
     emitLogInfo({
       id: 'socket-disconnect',
@@ -118,17 +116,27 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
   }
 
   /** 封装发送方法 */
-  function emit(event: string, data?: unknown): void {
-    if (!connected.value) {
-      console.warn('Socket is not connected. Please check your connection.');
-      return;
-    }
+  function emit(event: string, data?: unknown): Promise<any> {
+    return new Promise(resolve => {
+      if (!connected.value) {
+        return;
+      }
 
-    socket.emit(event, data);
-    emitLogInfo({
-      id: 'socket-emit',
-      type: 'info',
-      message: `Socket.IO 发送数据 ${event}: ${JSON.stringify(data)}`
+      socket.emit(event, data, (cb: any) => {
+        emitLogInfo({
+          id: 'socket-callback',
+          type: 'info',
+          message: `服务器已收到:  ${event}`
+        });
+
+        resolve(cb);
+      });
+
+      emitLogInfo({
+        id: 'socket-emit',
+        type: 'info',
+        message: `Socket.IO 发送数据 ${event}: ${JSON.stringify(data)}`
+      });
     });
   }
 

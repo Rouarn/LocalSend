@@ -2,15 +2,11 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { NAvatar, NButton, NInput, NScrollbar, NSpace } from 'naive-ui';
 import type { InputInst } from 'naive-ui';
+import dayjs from 'dayjs';
+import { useSocket } from '@/hooks/business/useSocket';
 import mittBus from '@/utils/mittBus';
 
-interface Message {
-  id: string;
-  text: string;
-  senderId: string;
-  timestamp: Date;
-  status?: 'sending' | 'sent' | 'failed';
-}
+const { listen, emit } = useSocket();
 
 const props = defineProps<{
   roomId: string;
@@ -19,7 +15,7 @@ const props = defineProps<{
   currentUser: Api.Websocket.OnlineUser;
 }>();
 
-const messages = ref<Message[]>([]);
+const messages = ref<Api.Websocket.Message[]>([]);
 const newMessage = ref('');
 const onlineUsers = ref<Api.Websocket.OnlineUser[]>([]);
 const showEmojiPopover = ref(false);
@@ -33,7 +29,7 @@ const isCurrentUser = (userId: string) => userId === props.currentUser.socketId;
 const sendMessage = () => {
   if (!newMessage.value.trim()) return;
 
-  const message: Message = {
+  const message: Api.Websocket.Message = {
     id: Date.now().toString(),
     text: newMessage.value,
     senderId: props.currentUser.socketId,
@@ -41,17 +37,20 @@ const sendMessage = () => {
     status: 'sending'
   };
 
+  emit('message', message).then(() => {
+    // 模拟发送成功
+    setTimeout(() => {
+      const index = messages.value.findIndex(m => m.id === message.id);
+      if (index !== -1) {
+        messages.value[index].status = 'sent';
+      }
+    }, 1000);
+  });
+
   messages.value.push(message);
   newMessage.value = '';
   showEmojiPopover.value = false;
-
-  // 模拟发送成功
-  setTimeout(() => {
-    const index = messages.value.findIndex(m => m.id === message.id);
-    if (index !== -1) {
-      messages.value[index].status = 'sent';
-    }
-  }, 1000);
+  messageInputRef.value?.focus();
 };
 
 // 添加表情
@@ -62,8 +61,6 @@ const addEmoji = (emoji: string) => {
 
 // 滚动到底部
 const scrollToBottom = () => {
-  console.log(111);
-  console.dir(messagesContainerRef.value);
   nextTick(() => {
     if (messagesContainerRef.value) {
       const container = document.querySelector('.Container .n-scrollbar-content');
@@ -84,16 +81,8 @@ const getSenderName = (senderId: string) => {
   return user ? user.socketName : '未知用户';
 };
 
-// 格式化时间
-const formatTime = (timestamp: Date) => {
-  return timestamp.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
 // 是否显示发送者信息
-const shouldShowSender = (message: Message, index: number) => {
+const shouldShowSender = (message: Api.Websocket.Message, index: number) => {
   if (message.senderId === props.currentUser.socketId) return false;
   if (index === 0) return true;
   return messages.value[index - 1].senderId !== message.senderId;
@@ -103,6 +92,17 @@ const getUserAvatar = (userId: string) => {
   if (userId === props.currentUser.socketId) return props.currentUser.avatar;
   const user = onlineUsers.value.find(u => u.socketId === userId);
   return user ? user.avatar : 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg';
+};
+
+// 判断是否显示时间（同一用户连续消息只显示最后一条的时间）
+const shouldShowTime = (message: Api.Websocket.Message, index: number) => {
+  // 如果是最后一条消息，总是显示时间
+  if (index === messages.value.length - 1) return true;
+
+  // 如果下一条消息的发送者不同，则显示时间
+  if (messages.value[index + 1].senderId !== message.senderId) return true;
+
+  return false;
 };
 
 const selectFiles = () => {};
@@ -206,17 +206,24 @@ const emojiCategories = [
 
 const activeEmojiCategory = ref(0);
 
-mittBus.on('listen:onlineUsers', (users: Api.Websocket.OnlineUser[]) => {
+const setOnlineUsers = (users: Api.Websocket.OnlineUser[]) => {
   onlineUsers.value.splice(0, onlineUsers.value.length);
   users.forEach(user => {
     onlineUsers.value.push(user);
   });
-  console.log(onlineUsers.value, 'onlineUsers');
-});
+};
+
+const listeneMessage = (data: Api.Websocket.Message) => {
+  console.log('listeneMessage: ', data);
+  if (data.senderId === props.currentUser.socketId) return;
+  messages.value.push(data);
+};
 
 // 初始化
 onMounted(() => {
   scrollToBottom();
+  mittBus.on('listen:onlineUsers', setOnlineUsers);
+  listen('listen:message', listeneMessage);
 });
 
 onUnmounted(() => {
@@ -225,20 +232,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-[#f5f5f5]">
+  <div class="h-full flex flex-col from-gray-50 to-gray-100 bg-gradient-to-br">
     <!-- 头部 - 优化样式 -->
-    <div class="bg-[#2e2e2e] p-3 text-white shadow-sm">
+    <div class="from-indigo-600 to-purple-600 bg-gradient-to-r p-3 text-white shadow-md">
       <NSpace align="center" justify="space-between" class="px-2">
         <NSpace align="center">
-          <h2 class="m-0 text-lg text-white font-semibold">{{ roomName }}</h2>
-          <span v-if="isPrivateChat" class="rounded-full bg-[#3a3a3a] px-2 py-0.5 text-xs text-gray-300">私聊</span>
+          <h2 class="m-0 flex items-center text-lg text-white font-semibold">
+            <span class="mr-2">{{ roomName }}</span>
+            <span v-if="isPrivateChat" class="rounded-full bg-white/20 px-2 py-0.5 text-xs">私聊</span>
+          </h2>
         </NSpace>
 
         <NSpace align="center" :size="12">
-          <span v-if="!isPrivateChat" class="text-xs text-gray-300">{{ onlineUsers.length }}人在线</span>
-          <div class="flex items-center">
-            <span class="mr-2 text-sm">{{ currentUser.socketName }}</span>
-            <NAvatar round :src="currentUser.avatar" size="small" class="border border-white/20" />
+          <span v-if="!isPrivateChat" class="text-sm text-white/90">{{ onlineUsers.length }}人在线</span>
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-white/90">{{ currentUser.socketName }}</span>
+            <NAvatar round :src="currentUser.avatar" size="small" class="border-2 border-white/30 shadow-sm" />
           </div>
         </NSpace>
       </NSpace>
@@ -247,87 +256,113 @@ onUnmounted(() => {
     <!-- 消息区域 - 优化背景和布局 -->
     <NScrollbar
       ref="messagesContainerRef"
-      class="Container flex-1 bg-[#e5e5e5] p-4"
+      class="Container flex-1 bg-gray-50 p-4"
       @click.stop="showEmojiPopover = false"
     >
       <div class="mx-auto max-w-[90%]">
-        <div v-for="(message, index) in messages" :key="message.id" class="mb-4">
-          <div class="flex" :class="[isCurrentUser(message.senderId) ? 'justify-end' : 'justify-start']">
-            <!-- 接收方头像 -->
-            <NAvatar
-              v-if="!isCurrentUser(message.senderId) && shouldShowSender(message, index)"
-              round
-              :src="getUserAvatar(message.senderId)"
-              size="small"
-              class="mr-2 mt-1 self-start"
-            />
-
-            <div
-              class="max-w-[80%] flex flex-col"
-              :class="[isCurrentUser(message.senderId) ? 'items-end' : 'items-start']"
-            >
-              <!-- 发送者名称 -->
+        <TransitionGroup name="message">
+          <div
+            v-for="(message, index) in messages"
+            :key="message.id"
+            class="mb-1"
+            :class="{
+              'mt-3': shouldShowSender(message, index)
+            }"
+          >
+            <div class="flex" :class="[isCurrentUser(message.senderId) ? 'justify-end' : 'justify-start']">
+              <!-- 接收方头像 -->
               <div
-                v-if="shouldShowSender(message, index)"
-                class="mb-1 text-xs font-medium"
-                :class="[isCurrentUser(message.senderId) ? 'text-gray-600' : 'text-gray-600']"
+                v-if="!isCurrentUser(message.senderId)"
+                class="mr-2 flex-shrink-0"
+                :class="{
+                  invisible: !shouldShowSender(message, index)
+                }"
               >
-                {{ getSenderName(message.senderId) }}
+                <NAvatar
+                  round
+                  :src="getUserAvatar(message.senderId)"
+                  size="small"
+                  class="mt-1 border-2 border-white shadow"
+                />
               </div>
 
-              <!-- 消息气泡 -->
-              <div
-                class="rounded-lg px-4 py-2 shadow-sm"
-                :class="[
-                  isCurrentUser(message.senderId)
-                    ? 'bg-[#95ec69] text-black rounded-br-none'
-                    : 'bg-white text-gray-800 rounded-bl-none'
-                ]"
-              >
-                <div class="break-words text-sm">{{ message.text }}</div>
-              </div>
+              <!-- 消息主体 -->
+              <div class="max-w-[80%] flex flex-col">
+                <!-- 发送者名称 -->
+                <div v-if="shouldShowSender(message, index)" class="mb-1 pl-1 text-xs text-gray-500 font-medium">
+                  {{ getSenderName(message.senderId) }}
+                </div>
 
-              <!-- 消息时间和状态 -->
-              <div
-                class="mt-1 flex items-center text-xs"
-                :class="[isCurrentUser(message.senderId) ? 'flex-row-reverse' : '']"
-              >
-                <span class="mx-1 text-gray-500">
-                  {{ formatTime(message.timestamp) }}
-                </span>
-                <span
-                  v-if="isCurrentUser(message.senderId)"
-                  class="text-xs"
+                <!-- 消息气泡组 -->
+                <div
+                  class="flex flex-col"
                   :class="[
-                    message.status === 'sending'
-                      ? 'text-gray-400'
-                      : message.status === 'failed'
-                        ? 'text-red-400'
-                        : 'text-blue-400'
+                    isCurrentUser(message.senderId) ? 'items-end' : 'items-start',
+                    { '-mt-1': !shouldShowSender(message, index) }
                   ]"
                 >
-                  {{ message.status === 'sending' ? '...' : message.status === 'failed' ? '发送失败' : '✓' }}
-                </span>
+                  <!-- 消息气泡部分 -->
+                  <div
+                    class="rounded-[12px] px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                    :class="[
+                      isCurrentUser(message.senderId)
+                        ? 'bg-blue-500 text-white message-bubble-sender'
+                        : 'bg-white text-gray-800 message-bubble-receiver',
+                      {
+                        'mt-1': !shouldShowSender(message, index)
+                      }
+                    ]"
+                  >
+                    <div class="break-words text-sm">{{ message.text }}</div>
+                  </div>
+
+                  <!-- 消息时间和状态 -->
+                  <div
+                    v-if="shouldShowTime(message, index)"
+                    class="mt-1 flex items-center text-xs text-gray-400"
+                    :class="[isCurrentUser(message.senderId) ? 'flex-row-reverse' : '']"
+                  >
+                    <span>{{ dayjs(message.timestamp).format('HH:mm') }}</span>
+                    <span
+                      v-if="isCurrentUser(message.senderId)"
+                      class="ml-1"
+                      :class="[
+                        message.status === 'sending'
+                          ? 'text-gray-400'
+                          : message.status === 'failed'
+                            ? 'text-red-400'
+                            : 'text-blue-400'
+                      ]"
+                    >
+                      {{ message.status === 'sending' ? '...' : message.status === 'failed' ? '✕' : '✓' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 发送方头像 -->
+              <div
+                v-if="isCurrentUser(message.senderId)"
+                class="ml-2 flex-shrink-0"
+                :class="{
+                  invisible: !shouldShowSender(message, index)
+                }"
+              >
+                <NAvatar round :src="currentUser.avatar" size="small" class="mt-1 border-2 border-white shadow" />
               </div>
             </div>
-
-            <!-- 发送方头像 -->
-            <NAvatar
-              v-if="isCurrentUser(message.senderId) && shouldShowSender(message, index)"
-              round
-              :src="currentUser.avatar"
-              size="small"
-              class="order-1 ml-2 mt-1 self-start"
-            />
           </div>
-        </div>
+        </TransitionGroup>
       </div>
     </NScrollbar>
 
     <!-- 输入区域 - 优化样式 -->
-    <div class="border-t border-gray-200 bg-white pb-2 shadow-sm">
+    <div class="border-t border-gray-200/50 bg-white/90 pb-2 shadow-inner backdrop-blur-sm">
       <!-- 表情面板 -->
-      <div v-if="showEmojiPopover" class="h-48 overflow-y-auto border-t border-gray-200 bg-white p-2 shadow-inner">
+      <div
+        v-if="showEmojiPopover"
+        class="h-48 overflow-y-auto border-t border-gray-200/50 bg-white/95 p-2 shadow-inner"
+      >
         <div class="sticky top-0 flex border-b border-gray-100 bg-white">
           <button
             v-for="(category, index) in emojiCategories"
@@ -356,16 +391,16 @@ onUnmounted(() => {
       </div>
 
       <!-- 输入工具栏 -->
-      <div class="flex items-center px-3 py-1">
+      <div class="flex items-center px-3 py-2">
         <NButton
           text
-          class="rounded-full p-2 text-gray-500 hover:bg-gray-100"
+          class="rounded-full p-2 text-gray-500 hover:bg-gray-100/50"
           @click="showEmojiPopover = !showEmojiPopover"
         >
           <icon-ic:baseline-emoji-emotions size="24" />
         </NButton>
 
-        <NButton text class="ml-1 rounded-full p-2 text-gray-500 hover:bg-gray-100" @click="selectFiles">
+        <NButton text class="ml-1 rounded-full p-2 text-gray-500 hover:bg-gray-100/50" @click="selectFiles">
           <icon-ic:baseline-attach-file size="24" />
         </NButton>
 
@@ -373,13 +408,17 @@ onUnmounted(() => {
           <NInput
             ref="messageInputRef"
             v-model:value="newMessage"
+            autofocus
+            clearable
+            show-count
+            round
             type="textarea"
             placeholder="输入消息..."
             :autosize="{
               minRows: 1,
               maxRows: 4
             }"
-            class="rounded-full bg-gray-100 px-4 transition-all focus:bg-white hover:bg-gray-50"
+            class="rounded-full bg-gray-100/70 px-4 shadow-inner transition-all focus:bg-white hover:bg-gray-50"
             @keydown.enter.exact.prevent="sendMessage"
           />
         </div>
@@ -388,7 +427,7 @@ onUnmounted(() => {
           type="primary"
           circle
           :disabled="!newMessage.trim()"
-          class="ml-1 h-10 w-10 bg-[#07c160] hover:bg-[#06ad56]"
+          class="ml-1 h-10 w-10 from-indigo-500 to-purple-500 bg-gradient-to-r shadow-md hover:from-indigo-600 hover:to-purple-600"
           @click="sendMessage"
         >
           <icon-ic:baseline-send class="text-white" />
@@ -402,7 +441,6 @@ onUnmounted(() => {
 /* 优化滚动条样式 */
 :deep(.n-scrollbar-rail) {
   opacity: 0.3;
-
   &.n-scrollbar-rail--vertical {
     right: 2px;
   }
@@ -419,8 +457,54 @@ onUnmounted(() => {
 
     &:focus {
       background: white !important;
-      box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1) !important;
+      box-shadow: none !important;
     }
+  }
+}
+
+/* 消息气泡基础样式 */
+.message-bubble-sender,
+.message-bubble-receiver {
+  position: relative;
+  transition: all 0.2s ease;
+  max-width: 100%;
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    bottom: 0;
+  }
+}
+
+/* 发送方气泡样式 */
+.message-bubble-sender {
+  border-radius: 12px 12px 0 12px;
+  margin-left: 20px;
+
+  &::after {
+    right: -12px;
+    background: radial-gradient(circle at 100% 0, transparent 70%, theme('colors.blue.500') 70%);
+  }
+
+  &:not(:first-child) {
+    border-top-right-radius: 4px;
+  }
+}
+
+/* 接收方气泡样式 */
+.message-bubble-receiver {
+  border-radius: 12px 12px 12px 0;
+  margin-right: 20px;
+
+  &::after {
+    left: -12px;
+    background: radial-gradient(circle at 0 0, transparent 70%, white 70%);
+  }
+
+  &:not(:first-child) {
+    border-top-left-radius: 4px;
   }
 }
 
@@ -433,11 +517,5 @@ onUnmounted(() => {
 .message-leave-to {
   opacity: 0;
   transform: translateY(10px);
-}
-
-:deep(.n-input textarea) {
-  &:focus {
-    box-shadow: none !important;
-  }
 }
 </style>

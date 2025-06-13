@@ -109,5 +109,22 @@ declare namespace Api {
       message: string;
       type: 'info' | 'warn' | 'error' | 'debug' | 'success';
     }
+
+    // 任意类型
+    interface Callback {
+      [key: string]: any;
+    }
+
+    interface Message {
+      id: string;
+      senderId: string;
+      type?: 'text' | 'image' | 'file' | 'video' | 'audio';
+      content?: string | File;
+      sender?: string;
+      timestamp: Date;
+      status: 'sending' | 'sent' | 'failed';
+      text: string;
+      [key: string]: any;
+    }
   }
 }
