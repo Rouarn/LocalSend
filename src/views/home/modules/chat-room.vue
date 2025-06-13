@@ -25,9 +25,142 @@ const messagesContainerRef = ref<HTMLElement | null>(null);
 // 计算属性
 const isCurrentUser = (userId: string) => userId === props.currentUser.socketId;
 
+// 文件上传
+interface EnhancedFile extends File {
+  base64?: string;
+}
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const selectedFiles = ref<EnhancedFile[]>([]);
+
+// 选择文件
+const selectFiles = () => {
+  if (!fileInputRef.value) return;
+  fileInputRef.value.click();
+};
+
+// 文件转Base64的工具函数
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+// 处理文件选择
+const handleFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+
+  // 将新选择的文件追加到已选文件列表
+  const newFiles = Array.from(input.files);
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  const validFiles = newFiles.filter(file => file.size <= maxSize);
+
+  if (validFiles.length !== input.files.length) {
+    window.$message?.warning('部分文件超过大小限制(10MB)');
+    return;
+  }
+
+  // 检查是否已存在同名文件并处理图片转Base64
+  for (const newFile of validFiles) {
+    const exists = selectedFiles.value.some(file => file.name === newFile.name && file.size === newFile.size);
+
+    if (!exists) {
+      // 如果是图片，转为Base64
+      if (newFile.type.startsWith('image/')) {
+        fileToBase64(newFile)
+          .then(base64Data => {
+            selectedFiles.value.push({
+              name: newFile.name,
+              size: newFile.size,
+              type: newFile.type,
+              base64: base64Data,
+              lastModified: newFile.lastModified,
+              webkitRelativePath: newFile.webkitRelativePath,
+              arrayBuffer: newFile.arrayBuffer,
+              bytes: newFile.bytes,
+              slice: newFile.slice,
+              stream: newFile.stream,
+              text: newFile.text
+            });
+          })
+          .catch(() => {
+            window.$message?.error(`图片 ${newFile.name} 转换失败`);
+            // 即使转换失败也保留原文件
+            selectedFiles.value.push(newFile);
+          });
+      } else {
+        // 非图片文件直接添加
+        selectedFiles.value.push(newFile);
+      }
+    } else {
+      window.$message?.warning(`文件 ${newFile.name} 已存在`);
+    }
+  }
+
+  // 重置输入，允许重复选择相同文件
+  input.value = '';
+};
+
+// 上传文件
+const uploadFiles = async () => {
+  if (selectedFiles.value.length === 0) return;
+
+  try {
+    // 这里实现实际的上传逻辑
+    // 例如使用 axios 或 fetch 发送到服务器
+    const formData = new FormData();
+    selectedFiles.value.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // 示例上传代码
+    // const response = await axios.post('/api/upload', formData, {
+    //   headers: {
+    //     'Content-Type': 'multipart/form-data'
+    //   }
+    // });
+
+    // 上传成功后发送消息
+    selectedFiles.value.forEach(file => {
+      const message: Api.Websocket.Message = {
+        id: Date.now().toString(),
+        text: `[文件] ${file.name}`,
+        senderId: props.currentUser.socketId,
+        timestamp: new Date(),
+        status: 'sent',
+        file: {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: file.base64 || URL.createObjectURL(file) // 本地预览URL
+        }
+      };
+      messages.value.push(message);
+
+      emit('message', message);
+    });
+
+    selectedFiles.value = [];
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+// 移除已选文件
+const removeFile = (index: number) => {
+  selectedFiles.value.splice(index, 1);
+};
+
+// 创建文件预览 URL 的方法
+const createObjectURL = (file: File) => {
+  return URL.createObjectURL(file);
+};
+
 // 发送消息
 const sendMessage = () => {
-  if (!newMessage.value.trim()) return;
+  if (!newMessage.value.trim() && selectedFiles.value.length === 0) return;
 
   const message: Api.Websocket.Message = {
     id: Date.now().toString(),
@@ -36,21 +169,26 @@ const sendMessage = () => {
     timestamp: new Date(),
     status: 'sending'
   };
+  if (newMessage.value.trim()) {
+    emit('message', message).then(() => {
+      // 模拟发送成功
+      setTimeout(() => {
+        const index = messages.value.findIndex(m => m.id === message.id);
+        if (index !== -1) {
+          messages.value[index].status = 'sent';
+        }
+      }, 1000);
+    });
 
-  emit('message', message).then(() => {
-    // 模拟发送成功
-    setTimeout(() => {
-      const index = messages.value.findIndex(m => m.id === message.id);
-      if (index !== -1) {
-        messages.value[index].status = 'sent';
-      }
-    }, 1000);
-  });
+    messages.value.push(message);
+    newMessage.value = '';
+    showEmojiPopover.value = false;
+    messageInputRef.value?.focus();
+  }
 
-  messages.value.push(message);
-  newMessage.value = '';
-  showEmojiPopover.value = false;
-  messageInputRef.value?.focus();
+  if (selectedFiles.value.length > 0) {
+    uploadFiles();
+  }
 };
 
 // 添加表情
@@ -64,6 +202,7 @@ const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainerRef.value) {
       const container = document.querySelector('.Container .n-scrollbar-content');
+
       if (container) {
         messagesContainerRef.value.scrollTo({
           left: 0,
@@ -227,97 +366,6 @@ const listeneMessage = (data: Api.Websocket.Message) => {
   messages.value.push(data);
 };
 
-// 文件上传
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const selectedFiles = ref<File[]>([]);
-
-// 选择文件
-const selectFiles = () => {
-  if (!fileInputRef.value) return;
-  fileInputRef.value.click();
-};
-
-// 处理文件选择
-const handleFileChange = (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  if (!input.files || input.files.length === 0) return;
-
-  // 将新选择的文件追加到已选文件列表
-  const newFiles = Array.from(input.files);
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  const validFiles = newFiles.filter(file => file.size <= maxSize);
-
-  if (validFiles.length !== input.files.length) {
-    window.$message?.warning('部分文件超过大小限制(10MB)');
-    return;
-  }
-  // 检查是否已存在同名文件
-  validFiles.forEach(newFile => {
-    const exists = selectedFiles.value.some(file => file.name === newFile.name && file.size === newFile.size);
-    if (!exists) {
-      selectedFiles.value.push(newFile);
-    } else {
-      window.$message?.warning(`文件 ${newFile.name} 已存在`);
-    }
-  });
-
-  // 重置输入，允许重复选择相同文件
-  input.value = '';
-};
-
-// 上传文件
-const uploadFiles = async () => {
-  if (selectedFiles.value.length === 0) return;
-
-  try {
-    // 这里实现实际的上传逻辑
-    // 例如使用 axios 或 fetch 发送到服务器
-    const formData = new FormData();
-    selectedFiles.value.forEach(file => {
-      formData.append('files', file);
-    });
-
-    // 示例上传代码
-    // const response = await axios.post('/api/upload', formData, {
-    //   headers: {
-    //     'Content-Type': 'multipart/form-data'
-    //   }
-    // });
-
-    // 上传成功后发送消息
-    selectedFiles.value.forEach(file => {
-      const message: Api.Websocket.Message = {
-        id: Date.now().toString(),
-        text: `[文件] ${file.name}`,
-        senderId: props.currentUser.socketId,
-        timestamp: new Date(),
-        status: 'sent',
-        file: {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: URL.createObjectURL(file) // 本地预览URL
-        }
-      };
-      messages.value.push(message);
-    });
-
-    selectedFiles.value = [];
-  } catch (error) {
-    console.error('文件上传失败:', error);
-  }
-};
-
-// 移除已选文件
-const removeFile = (index: number) => {
-  selectedFiles.value.splice(index, 1);
-};
-
-// 创建文件预览 URL 的方法
-const createObjectURL = (file: File) => {
-  return URL.createObjectURL(file);
-};
-
 // 初始化
 onMounted(() => {
   scrollToBottom();
@@ -431,7 +479,8 @@ onUnmounted(() => {
                             :alt="message.file.name || '图片'"
                             class="block cursor-pointer"
                             :img-props="{
-                              class: 'max-h-[200px] w-auto object-cover'
+                              class: 'max-h-[200px] w-auto object-cover',
+                              onLoad: scrollToBottom
                             }"
                             :preview-disabled="false"
                           />
@@ -580,7 +629,7 @@ onUnmounted(() => {
         <NButton
           type="primary"
           circle
-          :disabled="!newMessage.trim()"
+          :disabled="!newMessage.trim() && selectedFiles.length === 0"
           class="ml-1 h-10 w-10 from-indigo-500 to-purple-500 bg-gradient-to-r shadow-md hover:from-indigo-600 hover:to-purple-600"
           @click="sendMessage"
         >
@@ -595,13 +644,13 @@ onUnmounted(() => {
       <div v-if="selectedFiles.length > 0" class="border-b border-gray-200/50 px-3 py-2">
         <div class="mb-2 flex items-center justify-between">
           <span class="text-sm text-gray-600">已选择 {{ selectedFiles.length }} 个文件</span>
-          <NButton size="small" @click="uploadFiles">发送</NButton>
+          <!-- <NButton size="small" @click="uploadFiles">发送</NButton> -->
         </div>
         <div class="flex flex-wrap gap-2">
           <div v-for="(file, index) in selectedFiles" :key="index" class="relative">
             <div class="flex items-center rounded-lg bg-gray-100 p-2">
               <template v-if="file.type.startsWith('image/')">
-                <img :src="createObjectURL(file)" class="h-12 w-12 rounded object-cover" alt="预览" />
+                <img :src="file.base64 || createObjectURL(file)" class="h-12 w-12 rounded object-cover" alt="预览" />
               </template>
               <template v-else>
                 <div class="h-12 w-12 flex items-center justify-center rounded bg-gray-200">

@@ -10,7 +10,7 @@ const socketStore = useSocketStore();
 <template>
   <NLayout class="h-full" content-class="w-full flex flex-col">
     <NLayout has-sider class="flex-1" content-class="w-full h-full">
-      <NLayoutSider :native-scrollbar="false" bordered content-class="w[calc(100%-40px)] pa-20px h-full">
+      <NLayoutSider :native-scrollbar="false" bordered content-class="pa-20px h-full" width="300">
         <OnlineUser />
       </NLayoutSider>
       <NLayout content-class="flex flex-col">

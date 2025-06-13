@@ -53,8 +53,8 @@ const handlePrivateChat = (user: Api.Websocket.OnlineUser & { show: boolean }) =
 
     <NList class="list" clickable hoverable bordered show-divider>
       <NListItem v-for="user in onlineUsers" :key="user.socketId" class="">
-        <NSpace align="center" justify="space-between" :wrap-item="false">
-          <NSpace align="center" :wrap-item="false">
+        <NSpace align="center" justify="space-between" :wrap-item="false" inline>
+          <NSpace align="center" :wrap-item="false" inline>
             <NAvatar size="medium" :src="Avatar" round />
             <NSpace vertical :size="4">
               <NSpace align="center" :size="8">
