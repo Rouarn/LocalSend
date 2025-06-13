@@ -89,7 +89,7 @@ onUnmounted(() => {
           </template>
         </NInput>
 
-        <NButton size="small" class="clear-btn" @click="clearLogs">
+        <NButton size="small" text-color="#fff" @click="clearLogs">
           <template #icon><icon-heroicons-outline:archive-box-x-mark /></template>
           清空
         </NButton>
@@ -202,10 +202,5 @@ onUnmounted(() => {
 
 .search-input {
   width: 200px;
-}
-
-.clear-btn {
-  margin-left: 8px;
-  color: #fff;
 }
 </style>

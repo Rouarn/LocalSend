@@ -65,10 +65,18 @@ const scrollToBottom = () => {
     if (messagesContainerRef.value) {
       const container = document.querySelector('.Container .n-scrollbar-content');
       if (container) {
-        messagesContainerRef.value.scrollTo({ left: 0, top: container.scrollHeight, behavior: 'smooth' });
+        messagesContainerRef.value.scrollTo({
+          left: 0,
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
         return;
       }
-      messagesContainerRef.value.scrollTo({ left: 0, top: 99999999999, behavior: 'smooth' });
+      messagesContainerRef.value.scrollTo({
+        left: 0,
+        top: 99999999999,
+        behavior: 'smooth'
+      });
     }
   });
 };
@@ -105,7 +113,8 @@ const shouldShowTime = (message: Api.Websocket.Message, index: number) => {
   return false;
 };
 
-const selectFiles = () => {};
+//  选择文件
+// const selectFiles = () => {};
 
 // 监听消息变化
 watch(messages, scrollToBottom, { deep: true });
@@ -216,6 +225,97 @@ const setOnlineUsers = (users: Api.Websocket.OnlineUser[]) => {
 const listeneMessage = (data: Api.Websocket.Message) => {
   if (data.senderId === props.currentUser.socketId) return;
   messages.value.push(data);
+};
+
+// 文件上传
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const selectedFiles = ref<File[]>([]);
+
+// 选择文件
+const selectFiles = () => {
+  if (!fileInputRef.value) return;
+  fileInputRef.value.click();
+};
+
+// 处理文件选择
+const handleFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+
+  // 将新选择的文件追加到已选文件列表
+  const newFiles = Array.from(input.files);
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  const validFiles = newFiles.filter(file => file.size <= maxSize);
+
+  if (validFiles.length !== input.files.length) {
+    window.$message?.warning('部分文件超过大小限制(10MB)');
+    return;
+  }
+  // 检查是否已存在同名文件
+  validFiles.forEach(newFile => {
+    const exists = selectedFiles.value.some(file => file.name === newFile.name && file.size === newFile.size);
+    if (!exists) {
+      selectedFiles.value.push(newFile);
+    } else {
+      window.$message?.warning(`文件 ${newFile.name} 已存在`);
+    }
+  });
+
+  // 重置输入，允许重复选择相同文件
+  input.value = '';
+};
+
+// 上传文件
+const uploadFiles = async () => {
+  if (selectedFiles.value.length === 0) return;
+
+  try {
+    // 这里实现实际的上传逻辑
+    // 例如使用 axios 或 fetch 发送到服务器
+    const formData = new FormData();
+    selectedFiles.value.forEach(file => {
+      formData.append('files', file);
+    });
+
+    // 示例上传代码
+    // const response = await axios.post('/api/upload', formData, {
+    //   headers: {
+    //     'Content-Type': 'multipart/form-data'
+    //   }
+    // });
+
+    // 上传成功后发送消息
+    selectedFiles.value.forEach(file => {
+      const message: Api.Websocket.Message = {
+        id: Date.now().toString(),
+        text: `[文件] ${file.name}`,
+        senderId: props.currentUser.socketId,
+        timestamp: new Date(),
+        status: 'sent',
+        file: {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          url: URL.createObjectURL(file) // 本地预览URL
+        }
+      };
+      messages.value.push(message);
+    });
+
+    selectedFiles.value = [];
+  } catch (error) {
+    console.error('文件上传失败:', error);
+  }
+};
+
+// 移除已选文件
+const removeFile = (index: number) => {
+  selectedFiles.value.splice(index, 1);
+};
+
+// 创建文件预览 URL 的方法
+const createObjectURL = (file: File) => {
+  return URL.createObjectURL(file);
 };
 
 // 初始化
@@ -433,6 +533,49 @@ onUnmounted(() => {
         </NButton>
       </div>
     </div>
+
+    <!-- 修改后的输入工具栏 -->
+    <div class="border-t border-gray-200/50 bg-white/90 pb-2 shadow-inner backdrop-blur-sm">
+      <!-- 已选文件预览区域 -->
+      <div v-if="selectedFiles.length > 0" class="border-b border-gray-200/50 px-3 py-2">
+        <div class="mb-2 flex items-center justify-between">
+          <span class="text-sm text-gray-600">已选择 {{ selectedFiles.length }} 个文件</span>
+          <NButton size="small" @click="uploadFiles">发送</NButton>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <div v-for="(file, index) in selectedFiles" :key="index" class="relative">
+            <div class="flex items-center rounded-lg bg-gray-100 p-2">
+              <template v-if="file.type.startsWith('image/')">
+                <img :src="createObjectURL(file)" class="h-12 w-12 rounded object-cover" alt="预览" />
+              </template>
+              <template v-else>
+                <div class="h-12 w-12 flex items-center justify-center rounded bg-gray-200">
+                  <icon-ic:baseline-insert-drive-file class="text-gray-500" size="24" />
+                </div>
+              </template>
+              <div class="ml-2 max-w-[120px]">
+                <div class="truncate text-xs font-medium">
+                  {{ file.name }}
+                </div>
+                <div class="text-xs text-gray-500">{{ (file.size / 1024).toFixed(1) }} KB</div>
+              </div>
+            </div>
+            <NButton text class="absolute rounded-full bg-white p-1 shadow -right-2 -top-2" @click="removeFile(index)">
+              <icon-ic:baseline-close class="text-gray-500" size="16" />
+            </NButton>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 在模板中添加隐藏的文件输入 -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      class="hidden"
+      multiple
+      accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+      @change="handleFileChange"
+    />
   </div>
 </template>
 
