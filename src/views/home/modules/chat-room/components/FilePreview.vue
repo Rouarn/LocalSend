@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { NImage, NProgress } from 'naive-ui';
 import axios from 'axios';
 import mittBus from '@/utils/mittBus';
+import { getServiceBaseURL } from '@/utils/service';
 
 defineProps<{
   file: Api.Websocket.File;
@@ -13,11 +14,14 @@ const emit = defineEmits<{
   (e: 'downloadProgress', progress: number): void;
 }>();
 
+const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
+
 const downloadProgress = ref(0);
 const isDownloading = ref(false);
 
 const handleClick = async (file: Api.Websocket.File) => {
-  if (isDownloading.value) return;
+  if (isDownloading.value || file.type.startsWith('image/')) return;
 
   isDownloading.value = true;
   downloadProgress.value = 0;
@@ -26,7 +30,7 @@ const handleClick = async (file: Api.Websocket.File) => {
     window.$message?.info('开始下载...');
 
     const response = await axios({
-      url: file.url,
+      url: baseURL + file.url,
       method: 'GET',
       responseType: 'blob',
       onDownloadProgress: progressEvent => {
@@ -86,7 +90,7 @@ const handleClick = async (file: Api.Websocket.File) => {
     <!-- 图片预览 -->
     <template v-if="file.type?.startsWith('image') && file.url">
       <NImage
-        :src="file.url"
+        :src="baseURL + file.url"
         :alt="file.name || '图片'"
         class="block cursor-pointer"
         :img-props="{
