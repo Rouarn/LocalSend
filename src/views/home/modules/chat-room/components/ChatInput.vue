@@ -20,6 +20,8 @@ interface Emits {
   (e: 'reset'): void;
   (e: 'toggleMoreFunction'): void;
   (e: 'toggleEmojiPopover'): void;
+  (e: 'startVideoCall'): void;
+  (e: 'startVoiceCall'): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -38,8 +40,8 @@ const emit = defineEmits<Emits>();
     <TransitionGroup name="more-function">
       <MoreFunctions
         v-if="showMoreFunction"
-        @start-video-call="emit('reset')"
-        @start-voice-call="emit('reset')"
+        @start-video-call="emit('startVideoCall')"
+        @start-voice-call="emit('startVoiceCall')"
         @show-settings="emit('reset')"
       />
     </TransitionGroup>

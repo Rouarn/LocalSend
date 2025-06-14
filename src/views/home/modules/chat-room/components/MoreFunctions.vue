@@ -11,23 +11,23 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="absolute bottom-[80px] left-4 z-10 w-64 overflow-hidden border border-gray-200 rounded-lg bg-white shadow-lg"
+    class="absolute bottom-[80px] left-4 z-10 w-64 overflow-hidden border border-gray-200 rounded-lg bg-white shadow-lg transition-all duration-200"
   >
     <div class="divide-y divide-gray-100">
-      <!-- 功能分组1：通讯 -->
+      <!-- 通讯功能分组 -->
       <div class="p-2">
         <h3 class="px-2 py-1 text-xs text-gray-500 font-medium">通讯功能</h3>
         <div class="space-y-1">
           <button
-            class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+            class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-blue-50 hover:text-blue-600"
             @click="emit('startVideoCall')"
           >
             <icon-material-symbols:auto-videocam-sharp class="h-5 w-5 text-blue-500" />
             <span>视频通话</span>
-            <span class="ml-auto text-xs text-gray-400">Beta</span>
+            <span class="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-600">New</span>
           </button>
           <button
-            class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+            class="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-green-50 hover:text-green-600"
             @click="emit('startVoiceCall')"
           >
             <icon-material-symbols:call-outline-rounded class="h-5 w-5 text-green-500" />

@@ -5,6 +5,7 @@ import mittBus from '@/utils/mittBus';
 import ChatHeader from './components/ChatHeader.vue';
 import ChatMessages from './components/ChatMessages.vue';
 import ChatInput from './components/ChatInput.vue';
+import VideoCallModal from './components/VideoCallModal.vue';
 import { useChatMessages } from './composables/useChatMessages';
 import { useFileHandling } from './composables/useFileHandling';
 import { useChatFunctions } from './composables/useChatFunctions';
@@ -60,6 +61,30 @@ const sendMessage = () => {
   }
 };
 
+// 新增通话状态
+const callState = ref({
+  showCallModal: false,
+  isVideoCall: false,
+  isCalling: false,
+  isIncomingCall: false,
+  caller: ''
+});
+
+// 新增通话方法
+const startCall = (isVideo: boolean) => {
+  callState.value = {
+    showCallModal: true,
+    isVideoCall: isVideo,
+    isCalling: true,
+    isIncomingCall: false,
+    caller: '我发起的通话'
+  };
+};
+
+const endCall = () => {
+  callState.value.showCallModal = false;
+};
+
 // 初始化
 onMounted(() => {
   mittBus.on('listen:onlineUsers', setOnlineUsers);
@@ -94,6 +119,8 @@ onUnmounted(() => {
       @remove-file="removeFile"
       @upload-files="uploadFiles"
       @reset="reset"
+      @start-video-call="startCall(true)"
+      @start-voice-call="startCall(false)"
     />
 
     <input
@@ -103,6 +130,16 @@ onUnmounted(() => {
       multiple
       accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3"
       @change="handleFileChange"
+    />
+
+    <!-- 新增通话模态框 -->
+    <VideoCallModal
+      :show="callState.showCallModal"
+      :caller="callState.caller"
+      :is-video="callState.isVideoCall"
+      @accept="callState.isCalling = true"
+      @reject="callState.showCallModal = false"
+      @end="endCall"
     />
   </div>
 </template>
