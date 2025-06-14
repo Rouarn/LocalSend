@@ -2,9 +2,10 @@ import mitt from 'mitt';
 
 type ApplicationEvents = {
   'listen:onlineUsers': Api.Websocket.OnlineUser[];
+  'listen:message': Api.Websocket.Message;
   'emit:logInfo': Api.Websocket.LogInfo;
   'emit:callback': Api.Websocket.Callback;
-  'listen:message': Api.Websocket.Message;
+  'emit:scrollToBottom': undefined;
 };
 
 const mittBus = mitt<ApplicationEvents>();

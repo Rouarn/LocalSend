@@ -136,6 +136,7 @@ const uploadFiles = async () => {
           name: file.name,
           size: file.size,
           type: file.type,
+          uploadProgress: 0,
           url: file.base64 || URL.createObjectURL(file) // 本地预览URL
         }
       };

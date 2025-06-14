@@ -1,19 +1,88 @@
 <script setup lang="ts">
-import { NImage } from 'naive-ui';
+import { ref } from 'vue';
+import { NImage, NProgress } from 'naive-ui';
+import axios from 'axios';
+import mittBus from '@/utils/mittBus';
 
 defineProps<{
   file: Api.Websocket.File;
 }>();
+
+const emit = defineEmits<{
+  (e: 'click', file: Api.Websocket.File): void;
+  (e: 'downloadProgress', progress: number): void;
+}>();
+
+const downloadProgress = ref(0);
+const isDownloading = ref(false);
+
+const handleClick = async (file: Api.Websocket.File) => {
+  if (isDownloading.value) return;
+
+  isDownloading.value = true;
+  downloadProgress.value = 0;
+
+  try {
+    window.$message?.info('开始下载...');
+
+    const response = await axios({
+      url: file.url,
+      method: 'GET',
+      responseType: 'blob',
+      onDownloadProgress: progressEvent => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          downloadProgress.value = percent;
+          emit('downloadProgress', percent);
+        }
+      }
+    });
+
+    const blob = new Blob([response.data]);
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', file.name);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.$message?.success('下载完成');
+  } catch (error) {
+    window.$message?.error('下载失败');
+    console.error('下载失败:', error);
+  } finally {
+    isDownloading.value = false;
+    downloadProgress.value = 0;
+  }
+
+  emit('click', file);
+};
 </script>
 
 <template>
   <div
-    class="inline-block overflow-hidden border border-gray-200 rounded-lg bg-gray-50 shadow-sm transition-all hover:shadow-md"
+    class="relative inline-block cursor-pointer overflow-hidden border border-gray-200 rounded-lg bg-gray-50 shadow-sm transition-all hover:shadow-md"
     :class="{
       'max-w-[300px]': file.type?.startsWith('image'),
       'max-h-[250px]': !file.type?.startsWith('image')
     }"
+    @click="handleClick(file)"
   >
+    <!-- 下载/上传进度条 -->
+    <div
+      v-if="isDownloading || (file.uploadProgress > 0 && file.uploadProgress !== 100)"
+      class="absolute bottom-0 left-0 right-0"
+    >
+      <NProgress
+        type="line"
+        :percentage="downloadProgress || file.uploadProgress"
+        :height="4"
+        :show-indicator="false"
+        :status="downloadProgress < 100 || file.uploadProgress < 100 ? 'info' : 'success'"
+      />
+    </div>
+
     <!-- 图片预览 -->
     <template v-if="file.type?.startsWith('image') && file.url">
       <NImage
@@ -21,7 +90,8 @@ defineProps<{
         :alt="file.name || '图片'"
         class="block cursor-pointer"
         :img-props="{
-          class: 'max-h-[200px] w-auto object-cover'
+          class: 'max-h-[200px] w-auto object-cover',
+          onLoad: () => mittBus.emit('emit:scrollToBottom')
         }"
         :preview-disabled="false"
       />

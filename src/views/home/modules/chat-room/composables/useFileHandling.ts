@@ -1,5 +1,6 @@
 import { ref } from 'vue';
-
+import type { AxiosProgressEvent } from 'axios';
+import { uploadFile } from '@/service/api';
 export function useFileHandling(props: any, messages: any, emit: any) {
   const fileInputRef = ref<HTMLInputElement | null>(null);
   const selectedFiles = ref<any[]>([]);
@@ -22,7 +23,6 @@ export function useFileHandling(props: any, messages: any, emit: any) {
     }
 
     for (const newFile of validFiles) {
-      console.log('newFile: ', newFile);
       const exists = selectedFiles.value.some(file => file.name === newFile.name && file.size === newFile.size);
 
       if (!exists) {
@@ -43,30 +43,91 @@ export function useFileHandling(props: any, messages: any, emit: any) {
     if (selectedFiles.value.length === 0) return;
 
     try {
-      // 上传
+      // 文件类型映射
+      const getFileTypeLabel = (file: File) => {
+        const type = file.type.split('/')[0];
+        const extensions = file.name.split('.').pop()?.toLowerCase();
 
-      selectedFiles.value.forEach(file => {
+        if (type === 'image') return '[图片]';
+        if (type === 'video') return '[视频]';
+        if (type === 'audio') return '[音频]';
+
+        // 特定文档类型
+        const documentTypes = {
+          pdf: '[PDF]',
+          doc: '[Word]',
+          docx: '[Word]',
+          xls: '[Excel]',
+          xlsx: '[Excel]',
+          ppt: '[PPT]',
+          pptx: '[PPT]',
+          txt: '[文本]',
+          zip: '[压缩包]',
+          rar: '[压缩包]',
+          '7z': '[压缩包]'
+        };
+
+        return documentTypes[extensions as keyof typeof documentTypes] || '[文件]';
+      };
+
+      // 先创建本地消息（带占位内容）
+      const localMessages = selectedFiles.value.map(file => {
         const message: Api.Websocket.Message = {
-          id: Date.now().toString(),
+          id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           roomId: props.roomId,
-          text: `[文件] ${file.name}`,
+          text: `${getFileTypeLabel(file)} ${file.name}`,
           senderId: props.currentUser.socketId,
           timestamp: new Date(),
-          status: 'sent',
+          status: 'sending',
           file: {
             name: file.name,
             size: file.size,
             type: file.type,
-            url: URL.createObjectURL(file)
+            uploadProgress: 0,
+            url: URL.createObjectURL(file) // 本地预览URL
           }
         };
         messages.value.push(message);
-        emit('message', message);
+        return message;
       });
 
+      // 并行上传所有文件
+      const uploadPromises = selectedFiles.value.map(async (file, index) => {
+        const currentMessage = messages.value.find((message: { id: any }) => message.id === localMessages[index].id);
+
+        try {
+          const { data } = await uploadFile(
+            {
+              file,
+              type: 'file'
+            },
+            {
+              onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+                const progress = Math.round((progressEvent.loaded * 100) / (progressEvent.total || file.size));
+                currentMessage.file.uploadProgress = progress;
+              }
+            }
+          );
+
+          // 上传完成后更新消息
+          currentMessage.status = 'sent';
+          currentMessage.file.url = data?.info.url;
+          currentMessage.file.uploadProgress = 100;
+
+          // 发送到服务器
+          emit('message', currentMessage);
+        } catch (error) {
+          currentMessage.status = 'failed';
+          window.$message?.error(`上传失败${error}`);
+        } finally {
+          //
+        }
+      });
+
+      await Promise.all(uploadPromises);
       selectedFiles.value = [];
     } catch (error) {
-      console.error(error);
+      window.$message?.error(`上传失败${error}`);
     }
   };
 

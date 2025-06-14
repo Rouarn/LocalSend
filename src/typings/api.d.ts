@@ -134,6 +134,7 @@ declare namespace Api {
       size: number;
       type: string;
       url: string;
+      uploadProgress: number;
     }
   }
 }

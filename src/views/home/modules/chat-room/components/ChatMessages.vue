@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { NScrollbar } from 'naive-ui';
+import mittBus from '@/utils/mittBus';
 import MessageItem from './MessageItem.vue';
 
 const props = defineProps<{
@@ -39,6 +40,11 @@ watch(() => props.messages, scrollToBottom, { deep: true });
 // 初始化时滚动到底部
 onMounted(() => {
   scrollToBottom();
+  mittBus.on('emit:scrollToBottom', scrollToBottom);
+});
+
+onUnmounted(() => {
+  mittBus.off('emit:scrollToBottom', scrollToBottom);
 });
 </script>
 

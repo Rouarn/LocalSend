@@ -101,7 +101,7 @@ onUnmounted(() => {
       type="file"
       class="hidden"
       multiple
-      accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx"
+      accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mp3"
       @change="handleFileChange"
     />
   </div>
