@@ -6,6 +6,49 @@ import { useSocketStore } from '@/store/modules/socket';
 import { getServiceBaseURL } from '@/utils/service';
 import { emitLogInfo } from '@/utils/mittBus';
 
+interface UseSocketReturn {
+  /** Socket.IO 实例 */
+  socket: Socket;
+
+  /**
+   * 监听事件
+   *
+   * @param event 事件名称
+   * @param callback 回调函数
+   * @returns 取消监听的函数
+   */
+  listen: <T>(event: string, callback: (data: T) => void) => () => void;
+
+  /**
+   * 发送事件
+   *
+   * @param event 事件名称
+   * @param data 发送的数据
+   */
+  emit: (event: string, data?: unknown) => Promise<any>;
+
+  /** 是否已连接（响应式） */
+  connected: Ref<boolean>;
+
+  /** 重置 Socket 连接 */
+  reset: () => void;
+
+  /** 监听WebRTC offer事件 */
+  listenRTCOffer: (
+    callback: (data: { roomId: string; senderId: string; description: RTCSessionDescriptionInit }) => void
+  ) => () => void;
+
+  /** 监听WebRTC answer事件 */
+  listenRTCAnswer: (
+    callback: (data: { roomId: string; senderId: string; description: RTCSessionDescriptionInit }) => void
+  ) => () => void;
+
+  /** 监听WebRTC ICE候选事件 */
+  listenRTCIceCandidate: (
+    callback: (data: { roomId: string; senderId: string; candidate: RTCIceCandidate }) => void
+  ) => () => void;
+}
+
 let socketInstance: Socket | null = null;
 
 interface WebSocketOptions extends Partial<ManagerOptions & SocketOptions> {
@@ -45,34 +88,6 @@ function resetSocketInstance(): void {
     socketInstance.disconnect();
     socketInstance = null;
   }
-}
-
-interface UseSocketReturn {
-  /** Socket.IO 实例 */
-  socket: Socket;
-
-  /**
-   * 监听事件
-   *
-   * @param event 事件名称
-   * @param callback 回调函数
-   * @returns 取消监听的函数
-   */
-  listen: <T>(event: string, callback: (data: T) => void) => () => void;
-
-  /**
-   * 发送事件
-   *
-   * @param event 事件名称
-   * @param data 发送的数据
-   */
-  emit: (event: string, data?: unknown) => Promise<any>;
-
-  /** 是否已连接（响应式） */
-  connected: Ref<boolean>;
-
-  /** 重置 Socket 连接 */
-  reset: () => void;
 }
 
 /**
@@ -140,6 +155,24 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     });
   }
 
+  /** 封装WebRTC offer监听方法 */
+  function listenRTCOffer(callback: (data: any) => void): () => void {
+    listen('rtc-offer', callback);
+    return () => socket.off('rtc-offer', callback);
+  }
+
+  /** 封装WebRTC answer监听方法 */
+  function listenRTCAnswer(callback: (data: any) => void): () => void {
+    listen('rtc-answer', callback);
+    return () => socket.off('rtc-answer', callback);
+  }
+
+  /** 封装WebRTC ICE候选监听方法 */
+  function listenRTCIceCandidate(callback: (data: any) => void): () => void {
+    listen('rtc-ice-candidate', callback);
+    return () => socket.off('rtc-ice-candidate', callback);
+  }
+
   /** 重置连接 */
   function reset(): void {
     resetSocketInstance();
@@ -156,6 +189,9 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     listen,
     emit,
     connected, // 返回响应式的值
-    reset
+    reset,
+    listenRTCOffer,
+    listenRTCAnswer,
+    listenRTCIceCandidate
   };
 }

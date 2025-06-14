@@ -2,7 +2,7 @@
 import { reactive } from 'vue';
 import { NAvatar, NButton, NList, NListItem, NSpace, NTag, NText } from 'naive-ui';
 import { useSocketStore } from '@/store/modules/socket';
-import { useSocket } from '@/hooks/business/useSocket';
+import { useSocket } from '@/utils/useSocket';
 import mittBus, { emitLogInfo } from '@/utils/mittBus';
 import Avatar from '@/assets/imgs/soybean.jpg';
 

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { NButton, NModal, NSpace } from 'naive-ui';
 
 const props = defineProps<{
   show: boolean;
   caller: string;
   isVideo: boolean;
+  isCalling: boolean;
+  isIncoming: boolean;
+  localStream?: MediaStream;
+  remoteStream?: MediaStream;
 }>();
 
 const emit = defineEmits<{
@@ -17,131 +21,134 @@ const emit = defineEmits<{
 const localVideoRef = ref<HTMLVideoElement>();
 const remoteVideoRef = ref<HTMLVideoElement>();
 const audioRef = ref<HTMLAudioElement>();
-const isConnected = ref(false);
-const localStream = ref<MediaStream>();
-const isCallActive = ref(false);
 
-// 停止所有媒体流
-const stopMediaStreams = () => {
-  if (localStream.value) {
-    localStream.value.getTracks().forEach(track => {
-      track.stop();
-    });
-    localStream.value = undefined;
-  }
-
-  [localVideoRef.value, remoteVideoRef.value, audioRef.value].forEach(el => {
-    if (el?.srcObject) {
-      (el.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-      el.srcObject = null;
-    }
-  });
-
-  isCallActive.value = false;
-};
-
-// 初始化媒体流
-const initMedia = async () => {
-  try {
-    // 先停止之前的流
-    stopMediaStreams();
-
-    // 1. 检查API可用性
-    if (!navigator.mediaDevices?.getUserMedia) {
-      window.$message?.error('您的浏览器不支持视频通话');
-      return;
-    }
-
-    // 2. 检查安全上下文
-    if (!window.isSecureContext && location.hostname !== 'localhost') {
-      window.$message?.error('请使用HTTPS连接或本地开发环境');
-      return;
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: props.isVideo
-    });
-
-    console.log(stream, '本地媒体流');
-
-    localStream.value = stream;
-    isCallActive.value = true;
-
-    await nextTick();
-
-    // 绑定本地视频
-    if (localVideoRef.value) {
+// 绑定媒体流到视频元素
+watch(
+  () => props.localStream,
+  stream => {
+    if (stream && localVideoRef.value) {
       localVideoRef.value.srcObject = stream;
-      localVideoRef.value.play().catch(e => {
-        console.error('播放失败:', e);
-        window.$message?.error('无法播放本地视频');
-      });
-    } else {
-      console.error('localVideoRef 未绑定');
-      window.$message?.error('视频初始化失败');
-      return;
     }
+  },
+  { immediate: true }
+);
 
-    // 模拟远程连接
-    setTimeout(() => {
+watch(
+  () => props.remoteStream,
+  stream => {
+    if (stream) {
       if (props.isVideo && remoteVideoRef.value) {
-        remoteVideoRef.value.srcObject = new MediaStream();
-        remoteVideoRef.value.play().catch(e => console.error('远程视频播放失败:', e));
+        remoteVideoRef.value.srcObject = stream;
       } else if (audioRef.value) {
-        audioRef.value.srcObject = new MediaStream();
+        audioRef.value.srcObject = stream;
       }
-      isConnected.value = true;
-    }, 500);
-  } catch (error: any) {
-    console.error('获取媒体设备失败:', error);
-    // 4. 处理不同错误类型
-    if (error.name === 'NotAllowedError') {
-      window.$message?.error('请允许摄像头和麦克风权限');
-    } else if (error.name === 'NotFoundError') {
-      window.$message?.error('未找到可用的媒体设备');
-    } else {
-      window.$message?.error(`无法访问媒体设备: ${error.message}`);
-      window.$message?.error('无法访问摄像头/麦克风');
     }
-    stopMediaStreams();
-    emit('end');
-  }
-};
+  },
+  { immediate: true }
+);
 
-const handleAccept = async () => {
-  await initMedia();
+// 处理接受通话
+const handleAccept = () => {
   emit('accept');
 };
 
+// 处理拒绝通话
+const handleReject = () => {
+  emit('reject');
+};
+
+// 处理结束通话
 const handleEndCall = () => {
-  stopMediaStreams();
-  isConnected.value = false;
   emit('end');
 };
 
-const handleSwitchCamera = () => {
-  // 切换摄像头
-};
+// 停止所有媒体流
+// const stopMediaStreams = () => {
+//   if (localStream.value) {
+//     localStream.value.getTracks().forEach(track => {
+//       track.stop();
+//     });
+//     localStream.value = undefined;
+//   }
 
-// 监听show变化
-watch(
-  () => props.show,
-  newVal => {
-    if (!newVal) {
-      handleEndCall();
-    }
-  }
-);
+//   [localVideoRef.value, remoteVideoRef.value, audioRef.value].forEach(el => {
+//     if (el?.srcObject) {
+//       (el.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+//       el.srcObject = null;
+//     }
+//   });
 
-onMounted(() => {
-  console.log(localVideoRef.value, 'localVideoRef');
-  console.dir(localVideoRef.value);
-});
+//   isCallActive.value = false;
+// };
 
-onUnmounted(() => {
-  handleEndCall();
-});
+// // 初始化媒体流
+// const initMedia = async () => {
+//   try {
+//     // 先停止之前的流
+//     stopMediaStreams();
+
+//     // 1. 检查API可用性
+//     if (!navigator.mediaDevices?.getUserMedia) {
+//       window.$message?.error('您的浏览器不支持视频通话');
+//       return;
+//     }
+
+//     // 2. 检查安全上下文
+//     if (!window.isSecureContext && location.hostname !== 'localhost') {
+//       window.$message?.error('请使用HTTPS连接或本地开发环境');
+//       return;
+//     }
+
+//     const stream = await navigator.mediaDevices.getUserMedia({
+//       audio: true,
+//       video: props.isVideo
+//     });
+
+//     console.log(stream, '本地媒体流');
+
+//     localStream.value = stream;
+//     isCallActive.value = true;
+
+//     await nextTick();
+
+//     // 绑定本地视频
+//     if (localVideoRef.value) {
+//       localVideoRef.value.srcObject = stream;
+//       localVideoRef.value.play().catch(e => {
+//         console.error('播放失败:', e);
+//         window.$message?.error('无法播放本地视频');
+//       });
+//     } else {
+//       console.error('localVideoRef 未绑定');
+//       window.$message?.error('视频初始化失败');
+//       return;
+//     }
+
+//     // 模拟远程连接
+//     setTimeout(() => {
+//       if (props.isVideo && remoteVideoRef.value) {
+//         remoteVideoRef.value.srcObject = new MediaStream();
+//         remoteVideoRef.value.play().catch(e => console.error('远程视频播放失败:', e));
+//       } else if (audioRef.value) {
+//         audioRef.value.srcObject = new MediaStream();
+//       }
+//       isConnected.value = true;
+//     }, 500);
+//   } catch (error: any) {
+//     console.error('获取媒体设备失败:', error);
+//     // 4. 处理不同错误类型
+//     if (error.name === 'NotAllowedError') {
+//       window.$message?.error('请允许摄像头和麦克风权限');
+//     } else if (error.name === 'NotFoundError') {
+//       window.$message?.error('未找到可用的媒体设备');
+//     } else {
+//       window.$message?.error(`无法访问媒体设备: ${error.message}`);
+//       window.$message?.error('无法访问摄像头/麦克风');
+//     }
+//     stopMediaStreams();
+//     emit('end');
+//   }
+// };
 </script>
 
 <template>
@@ -159,7 +166,7 @@ onUnmounted(() => {
   >
     <div class="flex flex-col items-center p-4">
       <!-- 通话中UI -->
-      <div v-show="isConnected" class="w-full">
+      <div v-show="isCalling" class="w-full flex flex-col items-center">
         <div v-show="isVideo" class="relative mb-4 aspect-video w-full overflow-hidden rounded-xl bg-gray-900">
           <video ref="remoteVideoRef" autoplay playsinline class="h-full w-full object-cover"></video>
 
@@ -167,7 +174,6 @@ onUnmounted(() => {
           <div
             v-show="localStream"
             class="absolute bottom-4 right-4 w-1/4 overflow-hidden border-2 border-white rounded-md bg-black shadow-lg"
-            @click="handleSwitchCamera"
           >
             <video
               ref="localVideoRef"
@@ -175,8 +181,6 @@ onUnmounted(() => {
               playsinline
               muted
               class="h-full w-full scale-x-[-1] object-cover"
-              width="100%"
-              height="100%"
             ></video>
           </div>
         </div>
@@ -194,7 +198,7 @@ onUnmounted(() => {
 
         <!-- 控制按钮 -->
         <NSpace justify="center" class="w-full">
-          <NButton type="error" circle size="large" :loading="!isCallActive" @click="handleEndCall">
+          <NButton type="error" circle size="large" @click="handleEndCall">
             <template #icon>
               <icon-ic:baseline-call-end class="text-xl" />
             </template>
@@ -203,7 +207,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 来电UI -->
-      <template v-if="!isConnected">
+      <template v-if="isIncoming && !isCalling">
         <div
           class="mb-6 h-32 w-32 flex items-center justify-center rounded-full from-blue-500 to-purple-600 bg-gradient-to-br"
         >
@@ -215,7 +219,7 @@ onUnmounted(() => {
         </p>
 
         <NSpace justify="center" class="w-full">
-          <NButton type="error" circle size="large" @click="emit('reject')">
+          <NButton type="error" circle size="large" @click="handleReject">
             <template #icon>
               <icon-ic:baseline-call-end class="text-xl" />
             </template>

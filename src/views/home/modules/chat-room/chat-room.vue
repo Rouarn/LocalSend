@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useSocket } from '@/hooks/business/useSocket';
+import { useSocket } from '@/utils/useSocket';
+import { WebRTCService } from '@/utils/useWebrtc';
 import mittBus from '@/utils/mittBus';
 import ChatHeader from './components/ChatHeader.vue';
 import ChatMessages from './components/ChatMessages.vue';
@@ -61,37 +62,114 @@ const sendMessage = () => {
   }
 };
 
-// 新增通话状态
+// 通话状态
 const callState = ref({
-  showCallModal: false,
-  isVideoCall: false,
-  isCalling: false,
-  isIncomingCall: false,
-  caller: ''
+  showCallModal: false, // 是否显示通话弹窗
+  isVideoCall: false, // 是否是视频通话
+  isCalling: false, // 是否正在通话
+  isIncomingCall: false, // 是否是来电
+  caller: '', // 来电
+  callerId: '' // 来电者id
 });
 
-// 新增通话方法
-const startCall = (isVideo: boolean) => {
+let webRTCService: WebRTCService | null = null;
+
+// 初始化WebRTC服务
+const initWebRTCService = () => {
+  webRTCService = new WebRTCService(props.roomId, props.currentUser.socketId);
+
+  // 监听WebRTC相关事件
+  listen('rtc-offer', async (data: any) => {
+    if (data.senderId === props.currentUser.socketId) return;
+
+    if (webRTCService) {
+      await webRTCService.handleOffer(data.description);
+    }
+  });
+
+  listen('rtc-answer', async (data: any) => {
+    if (data.senderId === props.currentUser.socketId) return;
+    if (webRTCService) {
+      await webRTCService.handleAnswer(data.description);
+    }
+  });
+
+  listen('rtc-ice-candidate', async (data: any) => {
+    if (data.senderId === props.currentUser.socketId) return;
+    if (webRTCService) {
+      await webRTCService.handleIceCandidate(data.candidate);
+    }
+  });
+};
+
+// 结束通话
+const endCall = () => {
+  webRTCService?.cleanup();
+  webRTCService = null;
+
   callState.value = {
-    showCallModal: true,
-    isVideoCall: isVideo,
-    isCalling: true,
+    showCallModal: false,
+    isVideoCall: false,
+    isCalling: false,
     isIncomingCall: false,
-    caller: '我发起的通话'
+    caller: '',
+    callerId: ''
   };
 };
 
-const endCall = () => {
-  callState.value.showCallModal = false;
+// 发起通话
+const startCall = async (isVideo: boolean) => {
+  callState.value = {
+    showCallModal: true,
+    isVideoCall: isVideo,
+    isCalling: true, // 初始状态不是正在通话
+    isIncomingCall: false, // 这是主动发起的通话
+    caller: '我发起的通话',
+    callerId: props.currentUser.socketId
+  };
+
+  if (!webRTCService) {
+    initWebRTCService();
+  }
+
+  try {
+    await webRTCService?.startPeerConnection(isVideo);
+  } catch (error) {
+    console.error('Failed to start call:', error);
+    window.$message?.error('无法启动通话');
+    endCall();
+  }
+};
+
+// 接受通话
+const acceptCall = async () => {
+  callState.value.isCalling = true; // 设置为正在通话
+  callState.value.isIncomingCall = false; // 不再是来电状态
+
+  if (!webRTCService) {
+    initWebRTCService();
+  }
+
+  try {
+    await webRTCService?.startPeerConnection(callState.value.isVideoCall);
+  } catch (error) {
+    console.error('Failed to accept call:', error);
+    window.$message?.error('无法接受通话');
+    endCall();
+  }
 };
 
 // 初始化
 onMounted(() => {
+  // initWebRTCService();
+
   mittBus.on('listen:onlineUsers', setOnlineUsers);
   listen('listen:message', listeneMessage);
 });
 
 onUnmounted(() => {
+  endCall();
+
   mittBus.off('listen:onlineUsers');
 });
 </script>
@@ -137,8 +215,12 @@ onUnmounted(() => {
       :show="callState.showCallModal"
       :caller="callState.caller"
       :is-video="callState.isVideoCall"
-      @accept="callState.isCalling = true"
-      @reject="callState.showCallModal = false"
+      :is-calling="callState.isCalling"
+      :is-incoming="callState.isIncomingCall"
+      :local-stream="webRTCService?.getLocalStream()?.value"
+      :remote-stream="webRTCService?.getRemoteStream()?.value"
+      @accept="acceptCall"
+      @reject="endCall"
       @end="endCall"
     />
   </div>
