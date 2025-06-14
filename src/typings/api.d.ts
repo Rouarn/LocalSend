@@ -122,11 +122,18 @@ declare namespace Api {
       type?: 'text' | 'image' | 'file' | 'video' | 'audio';
       content?: string | File;
       sender?: string;
-      timestamp: Date;
-      status: 'sending' | 'sent' | 'failed';
+      timestamp?: Date;
+      status?: 'sending' | 'sent' | 'failed';
       text: string;
-      file?: { url: string; base64?: string } & Partial<File>;
+      file?: File;
       [key: string]: any;
+    }
+
+    interface File {
+      name: string;
+      size: number;
+      type: string;
+      url: string;
     }
   }
 }

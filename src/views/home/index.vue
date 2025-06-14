@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useSocketStore } from '@/store/modules/socket';
 import OnlineUser from '@/views/home/modules/online-user.vue';
-import ChatRoom from './modules/chat-room.vue';
+import ChatRoom from './modules/chat-room/chat-room.vue';
 import LogRecord from './modules/log-record.vue';
 
 const socketStore = useSocketStore();
