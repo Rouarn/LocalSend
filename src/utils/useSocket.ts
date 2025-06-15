@@ -1,5 +1,5 @@
 import type { Ref } from 'vue';
-import { onUnmounted, ref } from 'vue';
+import { ref } from 'vue';
 import type { ManagerOptions, Socket, SocketOptions } from 'socket.io-client';
 import { io } from 'socket.io-client';
 import { useSocketStore } from '@/store/modules/socket';
@@ -83,7 +83,7 @@ function getSocketInstance(url: string = otherBaseURL.ws, options: WebSocketOpti
 }
 
 /** 重置 Socket 实例（用于重新连接或更改配置） */
-function resetSocketInstance(): void {
+function resetCurrentUserInstance(): void {
   if (socketInstance) {
     socketInstance.disconnect();
     socketInstance = null;
@@ -104,7 +104,7 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
   // 监听连接和断开事件
   socket.on('connect', () => {
     connected.value = true;
-    useWebSocket.setSocket(socket as any);
+    useWebSocket.setCurrentUser(socket as any);
     emitLogInfo({
       id: 'socket-connect',
       type: 'success',
@@ -157,32 +157,27 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
 
   /** 封装WebRTC offer监听方法 */
   function listenRTCOffer(callback: (data: any) => void): () => void {
-    listen('rtc-offer', callback);
-    return () => socket.off('rtc-offer', callback);
+    listen('listen:offer', callback);
+    return () => socket.off('listen:offer', callback);
   }
 
   /** 封装WebRTC answer监听方法 */
   function listenRTCAnswer(callback: (data: any) => void): () => void {
-    listen('rtc-answer', callback);
-    return () => socket.off('rtc-answer', callback);
+    listen('listen:answer', callback);
+    return () => socket.off('listen:answer', callback);
   }
 
   /** 封装WebRTC ICE候选监听方法 */
   function listenRTCIceCandidate(callback: (data: any) => void): () => void {
-    listen('rtc-ice-candidate', callback);
-    return () => socket.off('rtc-ice-candidate', callback);
+    listen('listen:iceCandidate', callback);
+    return () => socket.off('listen:iceCandidate', callback);
   }
 
   /** 重置连接 */
   function reset(): void {
-    resetSocketInstance();
+    resetCurrentUserInstance();
     connected.value = false; // 重置时标记为断开连接
   }
-
-  // 组件卸载时自动取消所有监听
-  onUnmounted(() => {
-    socket.off();
-  });
 
   return {
     socket,

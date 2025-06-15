@@ -101,7 +101,13 @@ declare namespace Api {
     // 新增带扩展属性的类型
     interface OnlineUserWithState extends OnlineUser {
       show: boolean;
+      privateShow: boolean;
       current?: boolean;
+    }
+
+    interface ChatRoom {
+      roomId: string;
+      roomName: string;
     }
 
     interface LogInfo {

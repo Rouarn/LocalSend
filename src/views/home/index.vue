@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useSocketStore } from '@/store/modules/socket';
 import OnlineUser from './modules/online-user.vue';
 import ChatRoom from './modules/chat-room/chat-room.vue';
 import LogRecord from './modules/log-record.vue';
 
 const socketStore = useSocketStore();
+
+const currentUser = computed(() => socketStore.currentUser);
+const privateChatUser = computed(() => socketStore.privateChatUser);
+const isPrivateChat = computed(() => socketStore.isPrivateChat);
+const chatRoom = computed(() => socketStore.chatRoom);
 </script>
 
 <template>
@@ -20,10 +26,11 @@ const socketStore = useSocketStore();
 
         <NLayoutContent class="flex-1 pa-0 text-xs">
           <ChatRoom
-            room-id="PUBLIC_ROOM"
-            room-name="Public Room"
-            :is-private-chat="false"
-            :current-user="socketStore.socket"
+            :room-id="chatRoom.roomId"
+            :room-name="chatRoom.roomName"
+            :is-private-chat="isPrivateChat"
+            :current-user="currentUser"
+            :private-chat-users="privateChatUser"
           />
         </NLayoutContent>
       </NLayout>

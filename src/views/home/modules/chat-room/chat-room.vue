@@ -12,13 +12,14 @@ import { useFileHandling } from './composables/useFileHandling';
 import { useChatFunctions } from './composables/useChatFunctions';
 
 const props = defineProps<{
-  roomId: string;
-  roomName: string;
-  isPrivateChat: boolean;
-  currentUser: Api.Websocket.OnlineUser;
+  roomId: string; // 房间ID
+  roomName: string; // 房间名称
+  isPrivateChat: boolean; // 是否是私聊
+  privateChatUser?: Api.Websocket.OnlineUser; // 私聊对象 (对方, 只有私聊时存在)
+  currentUser: Api.Websocket.OnlineUser; // 当前用户 (本机)
 }>();
 
-const { listen, emit } = useSocket();
+const { listen, emit, listenRTCOffer, listenRTCAnswer, listenRTCIceCandidate } = useSocket();
 const newMessage = ref('');
 
 // 组合式函数
@@ -79,7 +80,7 @@ const initWebRTCService = () => {
   webRTCService = new WebRTCService(props.roomId, props.currentUser.socketId);
 
   // 监听WebRTC相关事件
-  listen('rtc-offer', async (data: any) => {
+  listenRTCOffer(async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
 
     if (webRTCService) {
@@ -87,14 +88,14 @@ const initWebRTCService = () => {
     }
   });
 
-  listen('rtc-answer', async (data: any) => {
+  listenRTCAnswer(async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
     if (webRTCService) {
       await webRTCService.handleAnswer(data.description);
     }
   });
 
-  listen('rtc-ice-candidate', async (data: any) => {
+  listenRTCIceCandidate(async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
     if (webRTCService) {
       await webRTCService.handleIceCandidate(data.candidate);
@@ -119,25 +120,37 @@ const endCall = () => {
 
 // 发起通话
 const startCall = async (isVideo: boolean) => {
-  callState.value = {
-    showCallModal: true,
-    isVideoCall: isVideo,
-    isCalling: true, // 初始状态不是正在通话
-    isIncomingCall: false, // 这是主动发起的通话
-    caller: '我发起的通话',
-    callerId: props.currentUser.socketId
-  };
+  if (props.isPrivateChat) {
+    callState.value = {
+      showCallModal: true,
+      isVideoCall: isVideo,
+      isCalling: true, // 初始状态不是正在通话
+      isIncomingCall: false, // 这是主动发起的通话
+      caller: '我发起的通话',
+      callerId: props.currentUser.socketId
+    };
 
-  if (!webRTCService) {
-    initWebRTCService();
-  }
+    // 发送通话请求
+    await emit('call-request', {
+      roomId: props.roomId,
+      targetId: props.privateChatUser?.socketId, // 这里应该是目标用户的socketId
+      isVideo,
+      caller: props.currentUser.socketName
+    });
 
-  try {
-    await webRTCService?.startPeerConnection(isVideo);
-  } catch (error) {
-    console.error('Failed to start call:', error);
-    window.$message?.error('无法启动通话');
-    endCall();
+    if (!webRTCService) {
+      initWebRTCService();
+    }
+
+    try {
+      await webRTCService?.startPeerConnection(isVideo);
+    } catch (error) {
+      console.error('Failed to start call:', error);
+      window.$message?.error('无法启动通话');
+      endCall();
+    }
+  } else {
+    window.$message?.error('当前状态不允许进行通话, 仅支持私聊通话');
   }
 };
 
@@ -161,8 +174,19 @@ const acceptCall = async () => {
 
 // 初始化
 onMounted(() => {
-  // initWebRTCService();
+  // 添加监听来电
+  listen('incoming-call', (data: any) => {
+    callState.value = {
+      showCallModal: true,
+      isVideoCall: data.isVideo,
+      isCalling: false, // 等待接听
+      isIncomingCall: true,
+      caller: data.caller,
+      callerId: data.callerId
+    };
+  });
 
+  initWebRTCService();
   mittBus.on('listen:onlineUsers', setOnlineUsers);
   listen('listen:message', listeneMessage);
 });
