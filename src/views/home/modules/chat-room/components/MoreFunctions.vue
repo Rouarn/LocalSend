@@ -4,9 +4,6 @@ const emit = defineEmits<{
   (e: 'startVoiceCall'): void;
   (e: 'showSettings'): void;
 }>();
-
-// 如果需要绑定点击事件，可显式调用 emit，例如：
-// @click="emit('startVideoCall')"
 </script>
 
 <template>

@@ -27,7 +27,6 @@ listen('listen:onlineUsers', (data: Api.Websocket.OnlineUserWithState[]) => {
   onlineUsers.splice(0, onlineUsers.length);
   data.forEach(user => {
     if (user.socketId === socketStore.currentUser.socketId) {
-      console.log('user: ', user);
       user.current = true;
       user.privateShow = false;
       onlineUsers.unshift(user);
@@ -35,7 +34,6 @@ listen('listen:onlineUsers', (data: Api.Websocket.OnlineUserWithState[]) => {
       return;
     }
     onlineUsers.push({ ...user, show: false, privateShow: false });
-    console.log('onlineUsers: ', onlineUsers);
   });
 
   mittBus.emit('listen:onlineUsers', onlineUsers);
@@ -73,7 +71,6 @@ const privateChatInvitation = (target: privateChat) => {
 };
 // 对方接受私聊邀请 (邀请方设置)
 const partyAccepts = (target: privateChat) => {
-  console.log('对方接受私聊邀请: ', target);
   window.$message?.success(` ${target.fromName} 已同意私聊邀请`);
   socketStore.setIsPrivateChat(true);
   socketStore.setPrivateChatUser({
@@ -100,7 +97,6 @@ const handleAgreePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
     roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室` // 聊天室名称
   };
   emit('agree_private_chat', target).then(() => {
-    console.log('接受私聊邀请: ', target);
     window.$message?.success(`已同意 ${user.socketName} 的私聊邀请`);
     partyAccepts({
       ...target,

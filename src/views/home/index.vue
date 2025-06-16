@@ -35,7 +35,7 @@ const chatRoom = computed(() => socketStore.chatRoom);
         </NLayoutContent>
       </NLayout>
     </NLayout>
-    <NLayoutFooter bordered class="h-xs pa-20px lt-lg:h-8rem">
+    <NLayoutFooter bordered class="h-xs pa-20px">
       <LogRecord />
     </NLayoutFooter>
   </NLayout>

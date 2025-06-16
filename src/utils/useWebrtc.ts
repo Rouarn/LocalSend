@@ -9,6 +9,7 @@ export class WebRTCService {
   private makingOffer = false;
   private ignoreOffer = false;
   private polite = false;
+  private socket = useSocket();
 
   constructor(
     private roomId: string,
@@ -28,6 +29,7 @@ export class WebRTCService {
     }
   }
 
+  //  初始化本地流
   async startPeerConnection(isVideo: boolean) {
     await this.initLocalStream(isVideo);
 
@@ -55,7 +57,7 @@ export class WebRTCService {
       if (candidate) {
         this.iceCandidates.push(candidate);
         // 通过Socket.IO发送ICE候选
-        useSocket().emit('rtc-ice-candidate', {
+        this.socket.emit('rtc-ice-candidate', {
           roomId: this.roomId,
           senderId: this.currentUserId,
           candidate
@@ -86,7 +88,7 @@ export class WebRTCService {
         this.makingOffer = true;
         await this.pc?.setLocalDescription();
         // 发送offer
-        useSocket().emit('rtc-offer', {
+        this.socket.emit('rtc-offer', {
           roomId: this.roomId,
           senderId: this.currentUserId,
           description: this.pc?.localDescription
@@ -99,6 +101,7 @@ export class WebRTCService {
     };
   }
 
+  //  接收offer
   async handleOffer(offer: RTCSessionDescriptionInit) {
     if (!this.pc) return;
 
@@ -113,7 +116,7 @@ export class WebRTCService {
       if (offer.type === 'offer') {
         await this.pc.setLocalDescription();
         // 发送answer
-        useSocket().emit('rtc-answer', {
+        this.socket.emit('rtc-answer', {
           roomId: this.roomId,
           senderId: this.currentUserId,
           description: this.pc.localDescription
@@ -123,7 +126,7 @@ export class WebRTCService {
       console.error('Error handling offer:', err);
     }
   }
-
+  //  接收answer
   async handleAnswer(answer: RTCSessionDescriptionInit) {
     if (!this.pc) return;
 
@@ -134,6 +137,7 @@ export class WebRTCService {
     }
   }
 
+  //  接收ICE候选
   async handleIceCandidate(candidate: RTCIceCandidate) {
     if (!this.pc) return;
 

@@ -126,36 +126,38 @@ const endCall = () => {
 };
 
 // 发起通话
-const startCall = async (isVideo: boolean) => {
+const startCall = (isVideo: boolean) => {
   if (props.isPrivateChat) {
-    callState.value = {
+    const call = {
       showCallModal: true,
       isVideoCall: isVideo,
-      isCalling: true, // 初始状态不是正在通话
+      isCalling: true,
       isIncomingCall: false, // 这是主动发起的通话
-      caller: '我发起的通话',
+      caller: `${props.currentUser.socketName}邀请你进行通话`,
       callerId: props.currentUser.socketId
     };
-
     // 发送通话请求
-    await emit('call-request', {
+    emit('call-request', {
       roomId: props.roomId,
-      targetId: props.privateChatUser?.socketId, // 这里应该是目标用户的socketId
+      targetId: props.privateChatUser?.socketId, // 目标用户的socketId
       isVideo,
-      caller: props.currentUser.socketName
+      caller: call.caller, // 当前用户消息 (相当于 from)
+      callerId: props.currentUser.socketId
+    }).then(async () => {
+      if (!webRTCService) {
+        console.log('初始化WebRTC服务:发送通话请求');
+        initWebRTCService();
+        callState.value = call;
+      }
+
+      try {
+        await webRTCService?.startPeerConnection(isVideo);
+      } catch (error) {
+        console.error('Failed to start call:', error);
+        window.$message?.error('无法启动通话');
+        endCall();
+      }
     });
-
-    if (!webRTCService) {
-      initWebRTCService();
-    }
-
-    try {
-      await webRTCService?.startPeerConnection(isVideo);
-    } catch (error) {
-      console.error('Failed to start call:', error);
-      window.$message?.error('无法启动通话');
-      endCall();
-    }
   } else {
     window.$message?.error('当前状态不允许进行通话, 仅支持私聊通话');
   }
@@ -167,7 +169,12 @@ const acceptCall = async () => {
   callState.value.isIncomingCall = false; // 不再是来电状态
 
   if (!webRTCService) {
+    console.log('初始化WebRTC服务, 接受通话');
     initWebRTCService();
+    window.$message?.info('初始化WebRTC服务, 接受通话');
+  } else {
+    console.log('WebRTC服务已存在, 接受通话');
+    window.$message?.info('WebRTC服务已存在, 接受通话');
   }
 
   try {
@@ -179,25 +186,26 @@ const acceptCall = async () => {
   }
 };
 
+// 来电
+const handIncomingCall = (data: any) => {
+  callState.value = {
+    showCallModal: true,
+    isVideoCall: data.isVideo,
+    isCalling: false, // 等待接听
+    isIncomingCall: true,
+    caller: data.caller,
+    callerId: data.callerId
+  };
+};
+
 // 初始化
 onMounted(() => {
-  // 添加监听来电
-  listen('incoming-call', (data: any) => {
-    callState.value = {
-      showCallModal: true,
-      isVideoCall: data.isVideo,
-      isCalling: false, // 等待接听
-      isIncomingCall: true,
-      caller: data.caller,
-      callerId: data.callerId
-    };
-  });
-
-  initWebRTCService();
-  mittBus.on('listen:onlineUsers', setOnlineUsers);
-  listen('listen:message', listeneMessage);
-  listen('welcome_message', welcomeMessage);
-  listen('goodbye_message', welcomeMessage);
+  // initWebRTCService();
+  listen('incoming-call', handIncomingCall); // 监听来电
+  listen('listen:message', listeneMessage); // 监听消息
+  listen('welcome_message', welcomeMessage); // 监听欢迎消息
+  listen('goodbye_message', welcomeMessage); // 监听退群消息
+  mittBus.on('listen:onlineUsers', setOnlineUsers); // 监听在线用户
 });
 
 onUnmounted(() => {

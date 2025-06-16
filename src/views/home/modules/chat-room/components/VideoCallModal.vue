@@ -165,6 +165,7 @@ const handleEndCall = () => {
     }"
   >
     <div class="flex flex-col items-center p-4">
+      {{ isCalling }}{{ isVideo }}
       <!-- 通话中UI -->
       <div v-show="isCalling" class="w-full flex flex-col items-center">
         <div v-show="isVideo" class="relative mb-4 aspect-video w-full overflow-hidden rounded-xl bg-gray-900">
@@ -207,6 +208,7 @@ const handleEndCall = () => {
       </div>
 
       <!-- 来电UI -->
+      {{ isIncoming }} {{ isCalling }}
       <template v-if="isIncoming && !isCalling">
         <div
           class="mb-6 h-32 w-32 flex items-center justify-center rounded-full from-blue-500 to-purple-600 bg-gradient-to-br"
