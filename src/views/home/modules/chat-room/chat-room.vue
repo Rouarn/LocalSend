@@ -20,7 +20,7 @@ const props = defineProps<{
   currentUser: Api.Websocket.OnlineUser; // 当前用户 (本机)
 }>();
 
-const { listen, emit, listenRTCOffer, listenRTCAnswer, listenRTCIceCandidate } = useSocket();
+const { listen, emit } = useSocket();
 const newMessage = ref('');
 
 // 组合式函数
@@ -87,22 +87,21 @@ const initWebRTCService = () => {
   webRTCService = new WebRTCService(props.roomId, props.currentUser.socketId);
 
   // 监听WebRTC相关事件
-  listenRTCOffer(async (data: any) => {
+  listen('listen:offer', async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
-
     if (webRTCService) {
       await webRTCService.handleOffer(data.description);
     }
   });
 
-  listenRTCAnswer(async (data: any) => {
+  listen('listen:answer', async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
     if (webRTCService) {
       await webRTCService.handleAnswer(data.description);
     }
   });
 
-  listenRTCIceCandidate(async (data: any) => {
+  listen('listen:iceCandidate', async (data: any) => {
     if (data.senderId === props.currentUser.socketId) return;
     if (webRTCService) {
       await webRTCService.handleIceCandidate(data.candidate);
