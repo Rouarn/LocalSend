@@ -74,8 +74,8 @@ const welcomeMessage = (message: Api.Websocket.Message) => {
 const callState = ref({
   showCallModal: false, // 是否显示通话弹窗
   isVideoCall: false, // 是否是视频通话
-  isCalling: false, // 是否正在通话
-  isIncomingCall: false, // 是否是来电
+  isCalling: false, // 是否正在通话中（双方接通后为true）
+  isIncomingCall: false, // 是否是来电（仅接收方未接听时显示来电UI）
   caller: '', // 来电用户名
   callerId: '' // 来电者id
 });
@@ -125,46 +125,55 @@ const endCall = () => {
 };
 
 // 发起通话
-const startCall = (isVideo: boolean) => {
-  if (props.isPrivateChat) {
-    const call = {
-      showCallModal: true,
-      isVideoCall: isVideo,
-      isCalling: true,
-      isIncomingCall: false, // 这是主动发起的通话
-      caller: `${props.currentUser.socketName}邀请你进行通话`,
-      callerId: props.currentUser.socketId
-    };
-    // 发送通话请求
-    emit('call-request', {
-      roomId: props.roomId,
-      targetId: props.privateChatUser?.socketId, // 目标用户的socketId
-      isVideo,
-      caller: call.caller, // 当前用户消息 (相当于 from)
-      callerId: props.currentUser.socketId
-    }).then(async () => {
-      if (!webRTCService) {
-        console.log('初始化WebRTC服务:发送通话请求');
-        initWebRTCService();
-        callState.value = call;
-      }
+const startCall = async (isVideo: boolean) => {
+  if (!props.isPrivateChat) {
+    window.$message?.error('当前状态不允许进行通话，仅支持私聊通话');
+    return;
+  }
 
-      try {
-        await webRTCService?.startPeerConnection(isVideo);
-      } catch (error) {
-        console.error('Failed to start call:', error);
-        window.$message?.error('无法启动通话');
-        endCall();
-      }
+  // 清理现有连接
+  if (webRTCService) {
+    webRTCService.cleanup();
+    webRTCService = null;
+  }
+
+  // 初始化新连接
+  webRTCService = new WebRTCService(props.roomId, props.currentUser.socketId);
+  initWebRTCService();
+
+  callState.value = {
+    showCallModal: true,
+    isVideoCall: isVideo,
+    isCalling: true, // 等待接听
+    isIncomingCall: false, // 是来电
+    caller: `${props.currentUser.socketName}邀请你进行通话`,
+    callerId: props.currentUser.socketId
+  };
+
+  try {
+    // 先发送通话请求
+    await emit('call-request', {
+      roomId: props.roomId,
+      targetId: props.privateChatUser?.socketId,
+      isVideo,
+      caller: callState.value.caller,
+      callerId: props.currentUser.socketId
     });
-  } else {
-    window.$message?.error('当前状态不允许进行通话, 仅支持私聊通话');
+
+    // 启动PeerConnection
+    if (webRTCService) {
+      await webRTCService.startPeerConnection(isVideo);
+    }
+  } catch (error) {
+    console.error('Failed to start call:', error);
+    window.$message?.error('无法启动通话');
+    endCall();
   }
 };
 
 // 接受通话
 const acceptCall = async () => {
-  callState.value.isCalling = true; // 设置为正在通话
+  callState.value.isCalling = true; // 进入通话状态
   callState.value.isIncomingCall = false; // 不再是来电状态
 
   if (!webRTCService) {
@@ -187,11 +196,12 @@ const acceptCall = async () => {
 
 // 来电
 const handIncomingCall = (data: any) => {
+  if (data.callerId === props.currentUser.socketId) return;
   callState.value = {
     showCallModal: true,
     isVideoCall: data.isVideo,
     isCalling: false, // 等待接听
-    isIncomingCall: true,
+    isIncomingCall: true, // 是来电
     caller: data.caller,
     callerId: data.callerId
   };
@@ -199,7 +209,6 @@ const handIncomingCall = (data: any) => {
 
 // 初始化
 onMounted(() => {
-  // initWebRTCService();
   listen('incoming-call', handIncomingCall); // 监听来电
   listen('listen:message', listeneMessage); // 监听消息
   listen('welcome_message', welcomeMessage); // 监听欢迎消息

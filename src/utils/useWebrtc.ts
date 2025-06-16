@@ -31,44 +31,51 @@ export class WebRTCService {
 
   //  初始化本地流
   async startPeerConnection(isVideo: boolean) {
-    // 先清理旧的连接（如果存在）
+    // 确保清理旧连接
     this.cleanup();
 
     await this.initLocalStream(isVideo);
 
     this.pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-        // 可以添加更多的STUN/TURN服务器
-      ]
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
-    // 添加本地流到连接
-    this.localStream.value?.getTracks().forEach(track => {
-      this.pc?.addTrack(track, this.localStream.value!);
-    });
+    // 按固定顺序添加轨道
+    const tracks = this.localStream.value?.getTracks() || [];
+    const audioTracks = tracks.filter(t => t.kind === 'audio');
+    const videoTracks = tracks.filter(t => t.kind === 'video');
 
-    // 设置事件处理器
+    // 先添加音频轨道，再添加视频轨道（保持顺序一致）
+    audioTracks.forEach(track => this.pc?.addTrack(track, this.localStream.value!));
+    if (isVideo) {
+      videoTracks.forEach(track => this.pc?.addTrack(track, this.localStream.value!));
+    }
+
     this.setupPeerConnectionEvents();
 
     try {
-      // 1. 创建offer
+      await this.createAndSendOffer();
+    } catch (error) {
+      console.error('Error creating initial offer:', error);
+      throw error;
+    }
+  }
+
+  private async createAndSendOffer() {
+    if (!this.pc || this.pc.signalingState !== 'stable') {
+      console.warn('Cannot create offer in non-stable state:', this.pc?.signalingState);
+      return;
+    }
+
+    try {
+      this.makingOffer = true;
       const offer = await this.pc.createOffer({
-        // 添加offer选项，确保稳定的媒体顺序
         offerToReceiveAudio: true,
-        offerToReceiveVideo: isVideo
+        offerToReceiveVideo: true
       });
 
-      // 2. 设置本地描述前先检查状态
-      if (this.pc.signalingState !== 'stable') {
-        console.warn('Cannot create offer in non-stable state:', this.pc.signalingState);
-        return;
-      }
-
-      // 3. 设置本地描述
       await this.pc.setLocalDescription(offer);
 
-      // 4. 发送offer
       this.socket.emit('rtc-offer', {
         roomId: this.roomId,
         senderId: this.currentUserId,
@@ -77,6 +84,8 @@ export class WebRTCService {
     } catch (error) {
       console.error('Error creating offer:', error);
       throw error;
+    } finally {
+      this.makingOffer = false;
     }
   }
 
@@ -113,31 +122,11 @@ export class WebRTCService {
     };
 
     // 监听协商事件
-    // 修改协商事件处理
     this.pc.onnegotiationneeded = async () => {
-      try {
-        // 检查是否已经在协商中
-        if (this.makingOffer || this.pc?.signalingState !== 'stable') {
-          return;
-        }
-
-        this.makingOffer = true;
-
-        // 创建新的offer
-        const offer = await this.pc.createOffer();
-        await this.pc.setLocalDescription(offer);
-
-        // 发送offer
-        this.socket.emit('rtc-offer', {
-          roomId: this.roomId,
-          senderId: this.currentUserId,
-          description: this.pc.localDescription
-        });
-      } catch (err) {
-        console.error('Error in negotiation:', err);
-      } finally {
-        this.makingOffer = false;
+      if (this.makingOffer || !this.pc || this.pc.signalingState !== 'stable') {
+        return;
       }
+      await this.createAndSendOffer();
     };
   }
 

@@ -32,21 +32,6 @@ interface UseSocketReturn {
 
   /** 重置 Socket 连接 */
   reset: () => void;
-
-  /** 监听WebRTC offer事件 */
-  listenRTCOffer: (
-    callback: (data: { roomId: string; senderId: string; description: RTCSessionDescriptionInit }) => void
-  ) => () => void;
-
-  /** 监听WebRTC answer事件 */
-  listenRTCAnswer: (
-    callback: (data: { roomId: string; senderId: string; description: RTCSessionDescriptionInit }) => void
-  ) => () => void;
-
-  /** 监听WebRTC ICE候选事件 */
-  listenRTCIceCandidate: (
-    callback: (data: { roomId: string; senderId: string; candidate: RTCIceCandidate }) => void
-  ) => () => void;
 }
 
 let socketInstance: Socket | null = null;
@@ -155,24 +140,6 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     });
   }
 
-  /** 封装WebRTC offer监听方法 */
-  function listenRTCOffer(callback: (data: any) => void): () => void {
-    listen('listen:offer', callback);
-    return () => socket.off('listen:offer', callback);
-  }
-
-  /** 封装WebRTC answer监听方法 */
-  function listenRTCAnswer(callback: (data: any) => void): () => void {
-    listen('listen:answer', callback);
-    return () => socket.off('listen:answer', callback);
-  }
-
-  /** 封装WebRTC ICE候选监听方法 */
-  function listenRTCIceCandidate(callback: (data: any) => void): () => void {
-    listen('listen:iceCandidate', callback);
-    return () => socket.off('listen:iceCandidate', callback);
-  }
-
   /** 重置连接 */
   function reset(): void {
     resetCurrentUserInstance();
@@ -184,9 +151,6 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
     listen,
     emit,
     connected, // 返回响应式的值
-    reset,
-    listenRTCOffer,
-    listenRTCAnswer,
-    listenRTCIceCandidate
+    reset
   };
 }
