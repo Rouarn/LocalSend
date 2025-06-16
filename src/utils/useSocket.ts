@@ -104,7 +104,7 @@ export function useSocket(url?: string, options?: Partial<ManagerOptions & Socke
   // 监听连接和断开事件
   socket.on('connect', () => {
     connected.value = true;
-    useWebSocket.setCurrentUser(socket as any);
+    useWebSocket.setCurrentUser({ socketId: socket.id || '', socketName: socket.id || '', introduction: '' });
     emitLogInfo({
       id: 'socket-connect',
       type: 'success',

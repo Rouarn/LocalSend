@@ -94,7 +94,7 @@ declare namespace Api {
     interface OnlineUser {
       socketId: string;
       socketName: string;
-      ip: string;
+      introduction: string;
       avatar?: string;
     }
 

@@ -63,13 +63,17 @@ const sendMessage = () => {
   }
 };
 
+const welcomeMessage = (message: Api.Websocket.Message) => {
+  messages.value.push(message);
+};
+
 // 通话状态
 const callState = ref({
   showCallModal: false, // 是否显示通话弹窗
   isVideoCall: false, // 是否是视频通话
   isCalling: false, // 是否正在通话
   isIncomingCall: false, // 是否是来电
-  caller: '', // 来电
+  caller: '', // 来电用户名
   callerId: '' // 来电者id
 });
 
@@ -189,6 +193,8 @@ onMounted(() => {
   initWebRTCService();
   mittBus.on('listen:onlineUsers', setOnlineUsers);
   listen('listen:message', listeneMessage);
+  listen('welcome_message', welcomeMessage);
+  listen('goodbye_message', welcomeMessage);
 });
 
 onUnmounted(() => {

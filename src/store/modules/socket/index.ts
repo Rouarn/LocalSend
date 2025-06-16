@@ -1,20 +1,19 @@
-import { reactive, ref } from 'vue';
+import { ref } from 'vue';
 import { defineStore } from 'pinia';
-import type { Socket } from 'socket.io-client';
 import { SetupStoreId } from '@/enum';
 
 export const useSocketStore = defineStore(SetupStoreId.Ws, () => {
-  const currentUser: Api.Websocket.OnlineUser = reactive({
+  const currentUser = ref<Api.Websocket.OnlineUser>({
     socketId: '',
     socketName: '',
-    ip: ''
+    introduction: ''
   });
 
   const isPrivateChat = ref(false);
-  const privateChatUser: Api.Websocket.OnlineUser = reactive({
+  const privateChatUser = ref<Api.Websocket.OnlineUser>({
     socketId: '',
     socketName: '',
-    ip: ''
+    introduction: ''
   });
 
   const chatRoom = ref<Api.Websocket.ChatRoom>({
@@ -22,16 +21,12 @@ export const useSocketStore = defineStore(SetupStoreId.Ws, () => {
     roomName: ''
   });
 
-  const setCurrentUser = (data: Socket & Api.Websocket.OnlineUser) => {
-    currentUser.socketId = data.id || '';
-    currentUser.socketName = data.socketName || '';
-    currentUser.ip = data.ip || '';
+  const setCurrentUser = (data: Api.Websocket.OnlineUser) => {
+    currentUser.value = data;
   };
 
-  const setPrivateChatUser = (data: Socket & Api.Websocket.OnlineUser) => {
-    privateChatUser.socketId = data.id || '';
-    privateChatUser.socketName = data.socketName || '';
-    privateChatUser.ip = data.ip || '';
+  const setPrivateChatUser = (data: Api.Websocket.OnlineUser) => {
+    privateChatUser.value = data;
   };
 
   const setIsPrivateChat = (data: boolean) => {

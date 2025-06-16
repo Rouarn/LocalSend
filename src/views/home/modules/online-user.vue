@@ -6,20 +6,32 @@ import { useSocket } from '@/utils/useSocket';
 import mittBus, { emitLogInfo } from '@/utils/mittBus';
 import Avatar from '@/assets/imgs/soybean.jpg';
 
-const { listen, emit, connected, reset } = useSocket();
-const useWebSocket = useSocketStore();
+interface privateChat {
+  message: string;
+  targetId: string;
+  targetName: string;
+  fromId: string;
+  fromName: string;
+  roomId: string;
+  roomName: string;
+}
 
-const currentUser = computed(() => useWebSocket.currentUser);
+const { listen, emit, connected, reset } = useSocket();
+const socketStore = useSocketStore();
+
+const currentUser = computed(() => socketStore.currentUser);
 
 const onlineUsers = reactive<Api.Websocket.OnlineUserWithState[]>([]);
 
 listen('listen:onlineUsers', (data: Api.Websocket.OnlineUserWithState[]) => {
   onlineUsers.splice(0, onlineUsers.length);
   data.forEach(user => {
-    if (user.socketId === useWebSocket.currentUser.socketId) {
+    if (user.socketId === socketStore.currentUser.socketId) {
+      console.log('user: ', user);
       user.current = true;
       user.privateShow = false;
       onlineUsers.unshift(user);
+      socketStore.setCurrentUser(user);
       return;
     }
     onlineUsers.push({ ...user, show: false, privateShow: false });
@@ -43,18 +55,14 @@ const handlePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
     targetName: user.socketName,
     fromId: currentUser.value.socketId,
     fromName: currentUser.value.socketName,
+    roomId: socketStore.currentUser.socketId,
+    roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室`,
     message: '你好，我们可以聊聊吗？'
   });
 };
 
 // 接收到私聊邀请
-const privateChatInvitation = (target: {
-  message: string;
-  targetId: string;
-  targetName: string;
-  fromId: string;
-  fromName: string;
-}) => {
+const privateChatInvitation = (target: privateChat) => {
   for (const user of onlineUsers) {
     if (user.socketId === target.fromId) {
       user.privateShow = true;
@@ -62,16 +70,37 @@ const privateChatInvitation = (target: {
     }
   }
 };
-
+// 对方接受私聊邀请
+const partyAccepts = (target: privateChat) => {
+  console.log('对方接受私聊邀请: ', target);
+  window.$message?.success(` ${target.fromName} 已同意私聊邀请`);
+  socketStore.setIsPrivateChat(true);
+  socketStore.setPrivateChatUser({
+    socketId: target.targetId,
+    socketName: target.targetName,
+    introduction: target.message
+  });
+  socketStore.setChatRoom({
+    roomId: target.fromId,
+    roomName: target.roomName
+  });
+};
 // 接受私聊邀请
 const handleAgreePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
   user.privateShow = false;
-  emit('agree_private_chat', {
+  const target = {
+    message: user.introduction,
     targetId: user.socketId,
     targetName: user.socketName,
-    message: `${useWebSocket.currentUser.socketName}已同意私聊`
-  }).then(() => {
+    fromId: currentUser.value.socketId,
+    fromName: currentUser.value.socketName,
+    roomId: user.socketId,
+    roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室`
+  };
+  emit('agree_private_chat', target).then(() => {
+    console.log('接受私聊邀请: ', target);
     window.$message?.success(`已同意 ${user.socketName} 的私聊邀请`);
+    partyAccepts(target);
   });
 };
 
@@ -87,6 +116,7 @@ const handlerefusePrivateChat = (target: Api.Websocket.OnlineUserWithState) => {
 
 onMounted(() => {
   listen('listen:private_chat', privateChatInvitation);
+  listen('listen:agree_private_chat', partyAccepts);
 });
 </script>
 
@@ -103,7 +133,7 @@ onMounted(() => {
 
     <NList class="list" clickable hoverable bordered show-divider>
       <NListItem v-for="user in onlineUsers" :key="user.socketId" class="relative">
-        <NSpace align="center" justify="space-between" :wrap-item="false" inline>
+        <NSpace align="center" justify="space-between" :wrap-item="false" inline class="w-full">
           <NSpace align="center" :wrap-item="false" inline>
             <NAvatar size="medium" :src="Avatar" round />
             <NSpace vertical :size="4">
@@ -111,11 +141,11 @@ onMounted(() => {
                 <NText strong>{{ user.socketName }}</NText>
                 <NTag size="small" type="info" round>bubble</NTag>
               </NSpace>
-              <NText depth="3" size="small">{{ user.ip }}</NText>
+              <NText depth="3" size="small">《{{ user.introduction }}》</NText>
             </NSpace>
           </NSpace>
 
-          <NPopconfirm v-if="!user.current && !user.privateShow" v-model:show="user.show">
+          <NPopconfirm v-if="!user.current" v-model:show="user.show" class="w-full">
             <template #trigger>
               <NButton type="primary" size="small" ghost block>私聊</NButton>
             </template>
