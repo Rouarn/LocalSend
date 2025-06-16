@@ -56,6 +56,7 @@ const handlePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
     fromId: currentUser.value.socketId,
     fromName: currentUser.value.socketName,
     roomId: socketStore.currentUser.socketId,
+    roomCurId: socketStore.chatRoom.roomId,
     roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室`,
     message: '你好，我们可以聊聊吗？'
   });
@@ -70,14 +71,14 @@ const privateChatInvitation = (target: privateChat) => {
     }
   }
 };
-// 对方接受私聊邀请
+// 对方接受私聊邀请 (邀请方设置)
 const partyAccepts = (target: privateChat) => {
   console.log('对方接受私聊邀请: ', target);
   window.$message?.success(` ${target.fromName} 已同意私聊邀请`);
   socketStore.setIsPrivateChat(true);
   socketStore.setPrivateChatUser({
-    socketId: target.targetId,
-    socketName: target.targetName,
+    socketId: target.fromId,
+    socketName: target.fromName,
     introduction: target.message
   });
   socketStore.setChatRoom({
@@ -89,18 +90,23 @@ const partyAccepts = (target: privateChat) => {
 const handleAgreePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
   user.privateShow = false;
   const target = {
-    message: user.introduction,
-    targetId: user.socketId,
-    targetName: user.socketName,
-    fromId: currentUser.value.socketId,
-    fromName: currentUser.value.socketName,
-    roomId: user.socketId,
-    roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室`
+    message: user.introduction, // 私聊打招呼
+    targetId: user.socketId, // 邀请人
+    targetName: user.socketName, // 邀请人
+    fromId: currentUser.value.socketId, // 自己(接收者)
+    fromName: currentUser.value.socketName, // 自己(接收者)
+    roomId: user.socketId, // 聊天室id (将要加入的聊天室id)
+    roomCurId: socketStore.chatRoom.roomId, // 当前房间
+    roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室` // 聊天室名称
   };
   emit('agree_private_chat', target).then(() => {
     console.log('接受私聊邀请: ', target);
     window.$message?.success(`已同意 ${user.socketName} 的私聊邀请`);
-    partyAccepts(target);
+    partyAccepts({
+      ...target,
+      fromId: target.targetId,
+      fromName: target.targetName
+    });
   });
 };
 

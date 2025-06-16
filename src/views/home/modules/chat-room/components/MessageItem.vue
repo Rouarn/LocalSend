@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { NAvatar } from 'naive-ui';
 import dayjs from 'dayjs';
+import defaultAvatarUrl from '@/assets/imgs/soybean.jpg?url';
 import FilePreview from './FilePreview.vue';
 
 const props = defineProps<{
@@ -15,7 +16,7 @@ const isCurrentUser = (userId: string) => userId === props.currentUser.socketId;
 
 const getSenderName = (senderId: string) => {
   if (senderId === props.currentUser.socketId) return '我';
-  if (senderId === 'system') return '系统';
+  if (senderId === 'System-Notification') return '系统通知';
   const user = props.onlineUsers.find(u => u.socketId === senderId);
   return user ? user.socketName : '未知用户';
 };
@@ -23,7 +24,7 @@ const getSenderName = (senderId: string) => {
 const getUserAvatar = (userId: string) => {
   if (userId === props.currentUser.socketId) return props.currentUser.avatar;
   const user = props.onlineUsers.find(u => u.socketId === userId);
-  return user ? user.avatar : 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg';
+  return user ? user.avatar : defaultAvatarUrl;
 };
 
 const shouldShowSender = () => {

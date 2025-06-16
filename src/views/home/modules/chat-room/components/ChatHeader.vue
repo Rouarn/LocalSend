@@ -5,7 +5,6 @@ defineProps<{
   roomName: string;
   isPrivateChat: boolean;
   onlineUsers: Api.Websocket.OnlineUser[];
-  currentUser: Api.Websocket.OnlineUser;
 }>();
 </script>
 
@@ -22,7 +21,6 @@ defineProps<{
       <NSpace align="center" :size="12">
         <span v-if="!isPrivateChat" class="text-sm text-white/90">{{ onlineUsers.length }}人在线</span>
         <div class="flex items-center space-x-2">
-          <span class="text-sm text-white/90">{{ currentUser.socketName }}</span>
           <icon-oui:online class="text-5 c-green/300 shadow-sm" />
         </div>
       </NSpace>

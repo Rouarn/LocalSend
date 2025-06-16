@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
+import { useSocketStore } from '@/store/modules/socket';
 import { useSocket } from '@/utils/useSocket';
 import { WebRTCService } from '@/utils/useWebrtc';
 import mittBus from '@/utils/mittBus';
@@ -30,6 +31,7 @@ const { selectedFiles, fileInputRef, selectFiles, handleFileChange, removeFile, 
   emit
 );
 const { showEmojiPopover, showMoreFunction, reset } = useChatFunctions();
+const socketStore = useSocketStore();
 
 // 发送消息
 const sendMessage = () => {
@@ -64,6 +66,7 @@ const sendMessage = () => {
 };
 
 const welcomeMessage = (message: Api.Websocket.Message) => {
+  if (socketStore.isPrivateChat) return;
   messages.value.push(message);
 };
 
@@ -206,12 +209,7 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full flex flex-col from-gray-50 to-gray-100 bg-gradient-to-br">
-    <ChatHeader
-      :room-name="roomName"
-      :is-private-chat="isPrivateChat"
-      :online-users="onlineUsers"
-      :current-user="currentUser"
-    />
+    <ChatHeader :room-name="roomName" :is-private-chat="isPrivateChat" :online-users="onlineUsers" />
 
     <ChatMessages :messages="messages" :current-user="currentUser" :online-users="onlineUsers" />
 

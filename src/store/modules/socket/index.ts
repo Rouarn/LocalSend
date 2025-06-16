@@ -17,8 +17,8 @@ export const useSocketStore = defineStore(SetupStoreId.Ws, () => {
   });
 
   const chatRoom = ref<Api.Websocket.ChatRoom>({
-    roomId: '',
-    roomName: ''
+    roomId: 'PUBLIC_ROOM',
+    roomName: '公共聊天室'
   });
 
   const setCurrentUser = (data: Api.Websocket.OnlineUser) => {
