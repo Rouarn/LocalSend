@@ -4,7 +4,8 @@ import { NImage, NProgress } from 'naive-ui';
 import axios from 'axios';
 import mittBus from '@/utils/mittBus';
 import { getServiceBaseURL } from '@/utils/service';
-import AudioPreview from '@/views/home/modules/chat-room/components/audioPreview.vue';
+import AudioPreview from '@/views/home/modules/chat-room/components/AudioPreview.vue';
+import VideoPreview from '@/views/home/modules/chat-room/components/VideoPreview.vue';
 
 defineProps<{
   file: Api.Websocket.File;
@@ -70,7 +71,7 @@ const handleClick = async (file: Api.Websocket.File) => {
     class="relative inline-block cursor-pointer overflow-hidden border border-gray-200 rounded-lg bg-gray-50 shadow-sm transition-all hover:shadow-md"
     :class="{
       'max-w-[300px]': file.type?.startsWith('image'),
-      'max-h-[200px]': file.type?.startsWith('image')
+      'max-w-[400px]': file.type?.startsWith('video')
     }"
     @click.self="handleClick(file)"
   >
@@ -113,6 +114,10 @@ const handleClick = async (file: Api.Websocket.File) => {
     <!-- 音频预览播放 -->
     <template v-else-if="file.type?.startsWith('audio') && file.url">
       <AudioPreview :file="file" :base-u-r-l="baseURL" />
+    </template>
+
+    <template v-else-if="file.type?.startsWith('video') && file.url">
+      <VideoPreview :file="file" :base-u-r-l="baseURL" />
     </template>
 
     <!-- 其他文件预览 -->
