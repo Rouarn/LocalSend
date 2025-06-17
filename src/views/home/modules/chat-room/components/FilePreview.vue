@@ -4,6 +4,7 @@ import { NImage, NProgress } from 'naive-ui';
 import axios from 'axios';
 import mittBus from '@/utils/mittBus';
 import { getServiceBaseURL } from '@/utils/service';
+import AudioPreview from '@/views/home/modules/chat-room/components/audioPreview.vue';
 
 defineProps<{
   file: Api.Websocket.File;
@@ -69,9 +70,9 @@ const handleClick = async (file: Api.Websocket.File) => {
     class="relative inline-block cursor-pointer overflow-hidden border border-gray-200 rounded-lg bg-gray-50 shadow-sm transition-all hover:shadow-md"
     :class="{
       'max-w-[300px]': file.type?.startsWith('image'),
-      'max-h-[250px]': !file.type?.startsWith('image')
+      'max-h-[200px]': file.type?.startsWith('image')
     }"
-    @click="handleClick(file)"
+    @click.self="handleClick(file)"
   >
     <!-- 下载/上传进度条 -->
     <div
@@ -92,9 +93,10 @@ const handleClick = async (file: Api.Websocket.File) => {
       <NImage
         :src="baseURL + file.url"
         :alt="file.name || '图片'"
+        object-fit="cover"
         class="block cursor-pointer"
         :img-props="{
-          class: 'max-h-[200px] w-auto object-cover',
+          class: 'max-h-[200px] w-full',
           onLoad: () => mittBus.emit('emit:scrollToBottom')
         }"
         :preview-disabled="false"
@@ -108,7 +110,12 @@ const handleClick = async (file: Api.Websocket.File) => {
       </div>
     </template>
 
-    <!-- 非图片文件预览 -->
+    <!-- 音频预览播放 -->
+    <template v-else-if="file.type?.startsWith('audio') && file.url">
+      <AudioPreview :file="file" :base-u-r-l="baseURL" />
+    </template>
+
+    <!-- 其他文件预览 -->
     <template v-else>
       <div class="flex items-center p-3">
         <div class="h-12 w-12 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500">

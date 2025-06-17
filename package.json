@@ -55,6 +55,7 @@
     "@sa/materials": "workspace:*",
     "@sa/utils": "workspace:*",
     "@types/socket.io-client": "^3.0.0",
+    "@vicons/material": "^0.13.0",
     "@vueuse/core": "13.3.0",
     "clipboard": "2.0.11",
     "dayjs": "1.11.13",

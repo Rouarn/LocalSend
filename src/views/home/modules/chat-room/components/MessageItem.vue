@@ -35,8 +35,7 @@ const shouldShowSender = () => {
 
 const shouldShowTime = () => {
   if (props.index === props.messages.length - 1) return true;
-  if (props.messages[props.index + 1].senderId !== props.message.senderId) return true;
-  return false;
+  return props.messages[props.index + 1].senderId !== props.message.senderId;
 };
 </script>
 
