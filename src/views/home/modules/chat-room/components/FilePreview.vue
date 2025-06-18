@@ -22,7 +22,7 @@ const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 const downloadProgress = ref(0);
 const isDownloading = ref(false);
 
-const handleClick = async (file: Api.Websocket.File) => {
+const handleDownload = async (file: Api.Websocket.File) => {
   if (isDownloading.value || file.type.startsWith('image/')) return;
 
   isDownloading.value = true;
@@ -73,7 +73,7 @@ const handleClick = async (file: Api.Websocket.File) => {
       'max-w-[300px]': file.type?.startsWith('image'),
       'max-w-[400px]': file.type?.startsWith('video')
     }"
-    @click.self="handleClick(file)"
+    @click.self="handleDownload(file)"
   >
     <!-- 下载/上传进度条 -->
     <div
@@ -113,11 +113,11 @@ const handleClick = async (file: Api.Websocket.File) => {
 
     <!-- 音频预览播放 -->
     <template v-else-if="file.type?.startsWith('audio') && file.url">
-      <AudioPreview :file="file" :base-u-r-l="baseURL" />
+      <AudioPreview :file="file" :base-u-r-l="baseURL" @download="handleDownload(file)" />
     </template>
 
     <template v-else-if="file.type?.startsWith('video') && file.url">
-      <VideoPreview :file="file" :base-u-r-l="baseURL" />
+      <VideoPreview :file="file" :base-u-r-l="baseURL" @download="handleDownload(file)" />
     </template>
 
     <!-- 其他文件预览 -->

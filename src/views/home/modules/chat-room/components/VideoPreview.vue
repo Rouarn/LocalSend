@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { NButton, NIcon, NProgress, NTooltip } from 'naive-ui';
 import {
+  ArrowCircleDownRound,
   FullscreenExitFilled,
   FullscreenFilled,
   PauseFilled,
@@ -16,6 +17,10 @@ defineProps<{
   baseURL: string;
 }>();
 
+defineEmits<{
+  (e: 'download'): void;
+}>();
+
 const videoPlayer = ref<HTMLVideoElement | null>(null);
 const videoContainer = ref<HTMLElement | null>(null);
 const isPlaying = ref(false);
@@ -27,6 +32,7 @@ const isMuted = ref(false);
 const isFullscreen = ref(false);
 const progressRef = ref<HTMLElement | null>(null);
 const showControls = ref(true);
+const isMouseHover = ref(false);
 let controlsTimeout: number;
 
 // 计算控制条尺寸相关属性
@@ -156,6 +162,11 @@ onMounted(() => {
   resetControlsTimeout();
 });
 
+const handleMouseHover = (bool: boolean) => {
+  if (isMouseHover.value === bool) return;
+  isMouseHover.value = bool;
+};
+
 onUnmounted(() => {
   if (videoPlayer.value) {
     videoPlayer.value.pause();
@@ -190,11 +201,17 @@ onUnmounted(() => {
     <div
       v-if="!isFullscreen"
       class="absolute left-2 right-2 top-2 flex items-center gap-2 rounded bg-black/50 p-2 text-white"
+      @mouseover="handleMouseHover(true)"
+      @mouseleave="handleMouseHover(false)"
     >
       <div class="truncate text-sm font-medium">
         {{ file.name || '未命名视频' }}
       </div>
-      <div v-if="file.size" class="ml-auto text-xs text-gray-300">{{ (file.size / 1024 / 1024).toFixed(2) }} MB</div>
+
+      <div v-if="file.size" class="ml-auto flex text-xs text-gray-300">
+        <ArrowCircleDownRound v-if="isMouseHover" class="ml-a mr-1 h-4 w-4" @click="$emit('download')" />
+        {{ (file.size / 1024 / 1024).toFixed(2) }} MB
+      </div>
     </div>
 
     <!-- 控制条 (合并全屏和非全屏) -->

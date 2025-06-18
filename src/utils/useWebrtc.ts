@@ -37,7 +37,7 @@ export class WebRTCService {
     await this.initLocalStream(isVideo);
 
     this.pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [{ urls: 'turn:stun.woyuxiaji.xyz:3478', username: 'woyuxiaji', credential: 'asdfghjkl' }]
     });
 
     // 按固定顺序添加轨道

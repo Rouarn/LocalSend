@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 import { NButton, NIcon, NProgress, NTooltip } from 'naive-ui';
-import { PauseFilled, PlayArrowFilled, VolumeMuteFilled, VolumeUpFilled } from '@vicons/material';
+import { ArrowCircleDownRound, PauseFilled, PlayArrowFilled, VolumeMuteFilled, VolumeUpFilled } from '@vicons/material';
 
 defineProps<{
   file: Api.Websocket.File;
   baseURL: string;
+}>();
+
+defineEmits<{
+  (e: 'download'): void;
 }>();
 
 const audioPlayer = ref<HTMLAudioElement | null>(null);
@@ -15,6 +19,7 @@ const duration = ref(0);
 const isSeeking = ref(false);
 const volume = ref(0.7);
 const isMuted = ref(false);
+const isMouseHover = ref(false);
 const progressRef = ref<HTMLElement | null>(null);
 
 // 初始化音频设置
@@ -32,7 +37,7 @@ const togglePlay = () => {
     audioPlayer.value.pause();
   } else {
     audioPlayer.value.play().catch(e => {
-      console.error('播放失败:', e);
+      window.$message?.error(`无法播放音频${e.message}`);
     });
   }
 };
@@ -91,8 +96,6 @@ const formatTime = (seconds: number) => {
 
 onMounted(() => {
   initAudio();
-  window.addEventListener('mousemove', handleSeek);
-  window.addEventListener('mouseup', handleSeekEnd);
 });
 
 onUnmounted(() => {
@@ -101,18 +104,23 @@ onUnmounted(() => {
     audioPlayer.value.src = '';
     audioPlayer.value.removeAttribute('src');
   }
-  window.removeEventListener('mousemove', handleSeek);
-  window.removeEventListener('mouseup', handleSeekEnd);
 });
+
+// 鼠标悬浮在音频图标上
+const handleMouseHover = (bool: boolean) => {
+  if (isMouseHover.value === bool) return;
+  isMouseHover.value = bool;
+};
 </script>
 
 <template>
   <div class="w-350px rounded-lg bg-gray-1 p-4 dark:bg-gray-8">
     <!-- 音频信息区域 -->
-    <div class="mb-3 flex items-center gap-3">
+    <div class="mb-3 flex items-center gap-3" @mouseover="handleMouseHover(true)" @mouseleave="handleMouseHover(false)">
       <div class="h-12 w-12 flex items-center justify-center rounded-lg bg-purple-1 dark:bg-purple-9">
         <NIcon size="24" color="#7c3aed" dark:color="#a78bfa">
-          <VolumeUpFilled />
+          <VolumeUpFilled v-if="!isMouseHover" />
+          <ArrowCircleDownRound v-else @click="$emit('download')" />
         </NIcon>
       </div>
       <div class="min-w-0 flex-1">
@@ -152,6 +160,7 @@ onUnmounted(() => {
             :rail-color="isSeeking ? '#d8b4fe' : undefined"
             class="cursor-pointer"
             @mousedown="handleSeekStart"
+            @mousemove="handleSeek"
             @click="handleSeekEnd"
           />
         </div>
