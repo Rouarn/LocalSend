@@ -150,7 +150,7 @@ onMounted(() => {
       <LogRecord />
     </NLayoutFooter>
 
-    <NDrawer v-model:show="active" width="80%" placement="left" auto-focus>
+    <NDrawer v-model:show="active" width="80%" placement="left">
       <NDrawerContent>
         <OnlineUser class="h-full" :online-users="onlineUsers" @handle-private-chat="handlePrivateChat" />
       </NDrawerContent>
