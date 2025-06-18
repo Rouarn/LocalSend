@@ -151,7 +151,7 @@ onMounted(() => {
     </NLayoutFooter>
 
     <NDrawer v-model:show="active" width="80%" placement="left" auto-focus>
-      <NDrawerContent title="斯通纳">
+      <NDrawerContent>
         <OnlineUser class="h-full" :online-users="onlineUsers" @handle-private-chat="handlePrivateChat" />
       </NDrawerContent>
     </NDrawer>
