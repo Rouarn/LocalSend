@@ -4,9 +4,9 @@ import { useSocketStore } from '@/store/modules/socket';
 import { useAppStore } from '@/store/modules/app';
 import mittBus, { emitLogInfo } from '@/utils/mittBus';
 import { useSocket } from '@/utils/useSocket';
-import OnlineUser from './modules/online-user.vue';
-import ChatRoom from './modules/chat-room/chat-room.vue';
-import LogRecord from './modules/log-record.vue';
+import OnlineUser from '~modules/online-user.vue';
+import ChatRoom from '~modules/chat-room/chat-room.vue';
+import LogRecord from '~modules/log-record.vue';
 
 interface privateChat {
   message: string;
