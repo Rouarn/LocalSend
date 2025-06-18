@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
-import { NButton, NInput, NScrollbar, NSpace, NTag } from 'naive-ui';
+import { NButton, NInput, NScrollbar, NSpace, NSwitch, NTag } from 'naive-ui';
+import { useAppStore } from '@/store/modules/app';
 import mittBus from '@/utils/mittBus';
+
+const appStore = useAppStore();
+const isMobile = computed(() => appStore.isMobile);
 
 const logs = ref<Api.Websocket.LogInfo[]>([]);
 const searchText = ref('');
@@ -82,8 +86,14 @@ onUnmounted(() => {
   <div class="console-logger">
     <!-- 工具栏 -->
     <div class="toolbar">
-      <NSpace align="center" :size="12">
-        <NInput v-model:value="searchText" placeholder="搜索日志..." clearable class="search-input">
+      <NSpace align="center" :size="isMobile ? 8 : 12">
+        <NInput
+          v-model:value="searchText"
+          placeholder="搜索日志..."
+          clearable
+          class="search-input"
+          :style="{ width: isMobile ? '10rem' : '12.5rem' }"
+        >
           <template #prefix>
             <icon-el:search />
           </template>
@@ -91,12 +101,12 @@ onUnmounted(() => {
 
         <NButton size="small" text-color="#fff" @click="clearLogs">
           <template #icon><icon-heroicons-outline:archive-box-x-mark /></template>
-          清空
+          <span v-if="!isMobile">清空</span>
         </NButton>
 
         <NSwitch v-model:value="autoScroll" size="small">
-          <template #checked>自动滚动</template>
-          <template #unchecked>手动滚动</template>
+          <template #checked>{{ isMobile ? '自动' : '自动滚动' }}</template>
+          <template #unchecked>{{ isMobile ? '手动' : '手动滚动' }}</template>
         </NSwitch>
       </NSpace>
     </div>
@@ -126,45 +136,46 @@ onUnmounted(() => {
   background-color: #1e1e1e;
   color: #e0e0e0;
   font-family: 'Courier New', monospace;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   overflow: hidden;
 }
 
 .toolbar {
-  padding: 8px 12px;
+  padding: 0.5rem 0.75rem;
   background-color: #252526;
   border-bottom: 1px solid #333;
 }
 
 .log-container {
   flex: 1;
-  padding: 8px 0;
+  padding: 0.5rem 0;
 }
 
 .log-content {
-  padding: 0 12px;
+  padding: 0 0.75rem;
 }
 
 .log-item {
   display: flex;
   align-items: center;
-  padding: 4px 0;
-  font-size: 13px;
+  padding: 0.25rem 0;
+  font-size: 0.8125rem;
   line-height: 1.5;
   border-bottom: 1px solid #2d2d2d;
 }
 
 .log-time {
   color: #858585;
-  min-width: 80px;
-  margin-right: 12px;
+  min-width: 5rem;
+  margin-right: 0.75rem;
+  font-size: 0.75rem;
 }
 
 .log-type {
-  min-width: 50px;
-  margin-right: 12px;
+  min-width: 3.125rem;
+  margin-right: 0.75rem;
   text-align: center;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: bold;
 }
 
@@ -174,7 +185,7 @@ onUnmounted(() => {
 }
 
 .empty-tip {
-  padding: 20px;
+  padding: 1.25rem;
   text-align: center;
   color: #666;
 }
@@ -200,7 +211,20 @@ onUnmounted(() => {
   color: #b5cea8;
 }
 
-.search-input {
-  width: 200px;
+@media (max-width: 768px) {
+  .log-item {
+    flex-wrap: wrap;
+    padding: 0.5rem 0;
+  }
+
+  .log-time,
+  .log-type {
+    margin-bottom: 0.25rem;
+  }
+
+  .log-message {
+    width: 100%;
+    padding-left: 5rem; /* Align with first line */
+  }
 }
 </style>

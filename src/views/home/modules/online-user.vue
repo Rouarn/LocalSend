@@ -1,54 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive } from 'vue';
+import { computed } from 'vue';
 import { NAvatar, NButton, NList, NListItem, NSpace, NTag, NText } from 'naive-ui';
 import { useSocketStore } from '@/store/modules/socket';
 import { useSocket } from '@/utils/useSocket';
-import mittBus, { emitLogInfo } from '@/utils/mittBus';
 import Avatar from '@/assets/imgs/soybean.jpg';
 
-interface privateChat {
-  message: string;
-  targetId: string;
-  targetName: string;
-  fromId: string;
-  fromName: string;
-  roomId: string;
-  roomName: string;
-}
+defineProps<{
+  onlineUsers: Api.Websocket.OnlineUserWithState[];
+}>();
 
-const { listen, emit, connected, reset } = useSocket();
+const emit = defineEmits<{
+  (e: 'handlePrivateChat', payload: { success: boolean; user: Api.Websocket.OnlineUserWithState }): void;
+}>();
+
+const { emit: wsEmit, connected, reset } = useSocket();
 const socketStore = useSocketStore();
 
 const currentUser = computed(() => socketStore.currentUser);
-
-const onlineUsers = reactive<Api.Websocket.OnlineUserWithState[]>([]);
-
-listen('listen:onlineUsers', (data: Api.Websocket.OnlineUserWithState[]) => {
-  onlineUsers.splice(0, onlineUsers.length);
-  data.forEach(user => {
-    if (user.socketId === socketStore.currentUser.socketId) {
-      user.current = true;
-      user.privateShow = false;
-      onlineUsers.unshift(user);
-      socketStore.setCurrentUser(user);
-      return;
-    }
-    onlineUsers.push({ ...user, show: false, privateShow: false });
-  });
-
-  mittBus.emit('listen:onlineUsers', onlineUsers);
-  emitLogInfo({
-    id: 'online_users',
-    type: 'info',
-    message: `当前在线人数: ${onlineUsers.length}`
-  });
-});
 
 // 发起私聊
 const handlePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
   user.show = false;
   window.$message?.success(`准备与 ${user.socketName} 私聊`);
-  emit('private_chat', {
+  wsEmit('private_chat', {
     targetId: user.socketId,
     targetName: user.socketName,
     fromId: currentUser.value.socketId,
@@ -59,67 +33,6 @@ const handlePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
     message: '你好，我们可以聊聊吗？'
   });
 };
-
-// 接收到私聊邀请
-const privateChatInvitation = (target: privateChat) => {
-  for (const user of onlineUsers) {
-    if (user.socketId === target.fromId) {
-      user.privateShow = true;
-      break;
-    }
-  }
-};
-// 对方接受私聊邀请 (邀请方设置)
-const partyAccepts = (target: privateChat) => {
-  window.$message?.success(` ${target.fromName} 已同意私聊邀请`);
-  socketStore.setIsPrivateChat(true);
-  socketStore.setPrivateChatUser({
-    socketId: target.fromId,
-    socketName: target.fromName,
-    introduction: target.message
-  });
-  socketStore.setChatRoom({
-    roomId: target.fromId,
-    roomName: target.roomName
-  });
-};
-// 接受私聊邀请
-const handleAgreePrivateChat = (user: Api.Websocket.OnlineUserWithState) => {
-  user.privateShow = false;
-  const target = {
-    message: user.introduction, // 私聊打招呼
-    targetId: user.socketId, // 邀请人
-    targetName: user.socketName, // 邀请人
-    fromId: currentUser.value.socketId, // 自己(接收者)
-    fromName: currentUser.value.socketName, // 自己(接收者)
-    roomId: user.socketId, // 聊天室id (将要加入的聊天室id)
-    roomCurId: socketStore.chatRoom.roomId, // 当前房间
-    roomName: `${`${socketStore.currentUser.socketName}和${user.socketName}`}的聊天室` // 聊天室名称
-  };
-  emit('agree_private_chat', target).then(() => {
-    window.$message?.success(`已同意 ${user.socketName} 的私聊邀请`);
-    partyAccepts({
-      ...target,
-      fromId: target.targetId,
-      fromName: target.targetName
-    });
-  });
-};
-
-// 拒绝私聊邀请
-const handlerefusePrivateChat = (target: Api.Websocket.OnlineUserWithState) => {
-  for (const user of onlineUsers) {
-    if (user.socketId === target.socketId) {
-      user.privateShow = false;
-      break;
-    }
-  }
-};
-
-onMounted(() => {
-  listen('listen:private_chat', privateChatInvitation);
-  listen('listen:agree_private_chat', partyAccepts);
-});
 </script>
 
 <template>
@@ -163,10 +76,21 @@ onMounted(() => {
             <div class="invitation-content">
               <NText class="invitation-text">{{ user.socketName }} 邀请你私聊</NText>
               <NSpace justify="end" class="invitation-actions">
-                <NButton type="error" size="small" ghost class="invitation-btn" @click="handlerefusePrivateChat(user)">
+                <NButton
+                  type="error"
+                  size="small"
+                  ghost
+                  class="invitation-btn"
+                  @click="emit('handlePrivateChat', { success: false, user })"
+                >
                   拒绝
                 </NButton>
-                <NButton type="primary" size="small" class="invitation-btn" @click="handleAgreePrivateChat(user)">
+                <NButton
+                  type="primary"
+                  size="small"
+                  class="invitation-btn"
+                  @click="emit('handlePrivateChat', { success: true, user })"
+                >
                   同意
                 </NButton>
               </NSpace>

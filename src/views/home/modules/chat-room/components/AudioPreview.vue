@@ -114,7 +114,7 @@ const handleMouseHover = (bool: boolean) => {
 </script>
 
 <template>
-  <div class="w-350px rounded-lg bg-gray-1 p-4 dark:bg-gray-8">
+  <div class="mx-w-350px rounded-lg bg-gray-1 p-4 dark:bg-gray-8">
     <!-- 音频信息区域 -->
     <div class="mb-3 flex items-center gap-3" @mouseover="handleMouseHover(true)" @mouseleave="handleMouseHover(false)">
       <div class="h-12 w-12 flex items-center justify-center rounded-lg bg-purple-1 dark:bg-purple-9">
