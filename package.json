@@ -1,31 +1,9 @@
 {
-  "name": "soybean-admin",
+  "name": "localsend-vue",
   "type": "module",
-  "version": "1.3.14",
-  "description": "A fresh and elegant admin template, based on Vue3、Vite6、TypeScript、NaiveUI and UnoCSS. 一个基于Vue3、Vite6、TypeScript、NaiveUI and UnoCSS的清新优雅的中后台模版。",
-  "author": {
-    "name": "Soybean",
-    "email": "soybeanjs@outlook.com",
-    "url": "https://github.com/soybeanjs"
-  },
-  "license": "MIT",
-  "homepage": "https://github.com/soybeanjs/soybean-admin",
-  "repository": {
-    "url": "https://github.com/soybeanjs/soybean-admin.git"
-  },
-  "bugs": {
-    "url": "https://github.com/soybeanjs/soybean-admin/issues"
-  },
-  "keywords": [
-    "Vue3 admin ",
-    "vue-admin-template",
-    "Vite6",
-    "TypeScript",
-    "naive-ui",
-    "naive-ui-admin",
-    "ant-design-vue v4",
-    "UnoCSS"
-  ],
+  "version": "1.0.0",
+  "description": "A high-performance real-time communication platform based on WebRTC and Socket.IO, featuring P2P video calls and instant messaging.",
+  "keywords": ["WebRTC", "Socket.IO", "Vue3", "Vite6", "TypeScript", "P2P", "Real-time Communication", "Monorepo"],
   "engines": {
     "node": ">=18.20.0",
     "pnpm": ">=8.7.0"
